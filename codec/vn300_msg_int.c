@@ -51,31 +51,43 @@ const uint8_t kVN_Group_Field_Lengths[VN_GROUP_COUNT][VN_GROUP_FIELD_COUNT] =
     };
 
 
+const
+
+//this defines the format of the standard payload
+static uint32_t vn300_standard_payload_length() {
+  static uint32_t precalc_len = 0;
+  if (0 == precalc_len) {
+    precalc_len =
+    // Group TIME
+    kVN_Group_Field_Lengths[VN_GROUP_INDEX_TIME][VN_TIME_TimeGpsPps] +
+    kVN_Group_Field_Lengths[VN_GROUP_INDEX_TIME][VN_TIME_TimeUTC] +
+    // Group IMU
+    kVN_Group_Field_Lengths[VN_GROUP_INDEX_IMU][VN_IMU_AngularRate] +
+    // Group GPS
+    // Group ATT
+    kVN_Group_Field_Lengths[VN_GROUP_INDEX_ATT][VN_ATT_YawPitchRoll] +
+    kVN_Group_Field_Lengths[VN_GROUP_INDEX_ATT][VN_ATT_Quaternion] +
+    // Group VN_GROUP_INDEX_INS
+    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_Status] +
+    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_PosLla] +
+    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_PosEcef] +
+    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_VelBody] +
+    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_PosU] +
+    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_VelU] +
+    0;
+  }
+
+  return precalc_len;
+}
 
 
 uint32_t vn300_standard_message_length() {
   static uint32_t precalc_len = 0;
   if (0 == precalc_len) {
-    precalc_len = (VN_HEADER_PAYLOAD_OFF - 1) +
-      // Group TIME
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_TIME][VN_TIME_TimeGpsPps] +
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_TIME][VN_TIME_TimeUTC] +
-      // Group IMU
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_IMU][VN_IMU_AngularRate] +
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_IMU][VN_IMU_AngularRate] +
-      // Group GPS
-      // Group ATT
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_ATT][VN_ATT_YawPitchRoll] +
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_ATT][VN_ATT_Quaternion] +
-      // Group VN_GROUP_INDEX_INS
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_Status] +
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_PosLla] +
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_PosEcef] +
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_VelBody] +
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_PosU] +
-      kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_VelU] +
-      VN_CRC_LEN;
+    uint32_t payload_len = vn300_standard_payload_length();
+    precalc_len = (VN_HEADER_PAYLOAD_OFF - 1) +  payload_len + VN_CRC_LEN;
   }
 
   return precalc_len;
 }
+

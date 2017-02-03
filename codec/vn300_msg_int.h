@@ -18,17 +18,21 @@ uint8_t vn300_u8_checksum(uint8_t data[], uint32_t length);
 uint16_t vn300_u16_CRC(uint8_t data[], uint32_t length);
 
 
+//message format
+//sync  (uint8_t)
+//groups (uint8_t)
+//group field1 (u16)
+//group field 2 (u16)
+//payload (n)
+//CRC (u16)
+
 #define VECTORNAV_HEADER_SYNC_BYTE  0xFA
 
-#define VN_HEADER_SYNC_OFF    0
-#define VN_HEADER_GROUPS_OFF  1
-#define VN_HEADER_GROUP1_OFF  2
+
 #define VN_HEADER_GROUP1_LEN  2
-#define VN_HEADER_GROUP2_OFF  4
 #define VN_HEADER_GROUP2_LEN  2
 
 #define VN_HEADER_PAYLOAD_OFF  6
-
 #define VN_CRC_LEN  2
 
 
@@ -44,8 +48,32 @@ enum {
     VN_GROUP_INDEX_INS,
 } VN_Group_Index;
 
+//Header contains selectors for four Groups
+//Header is variable length depending on the number of groups active in the message
+enum {
+    VN_HEADER_Sync = 0,
+    VN_HEADER_Groups = 1,
+    //--- the following must be updated if we activate any new groups
+    VN_HEADER_GroupFields_TIME = 2,
+    VN_HEADER_GroupFields_IMU = 4,
+    VN_HEADER_GroupFields_ATT = 6,
+    VN_HEADER_GroupFields_INS = 8,
+    VN_HEADER_Payload
+} VN_Header_Offset;
 
-// Binary Group 2 -- Time outputsx
+
+
+/// The groups we've preconfigured to be active
+#define VN300_SELECTED_GROUPS (\
+    (1 << VN_GROUP_INDEX_TIME)  \
+    & (1 << VN_GROUP_INDEX_IMU)  \
+    &  (1 << VN_GROUP_INDEX_ATT) \
+    &  (1 << VN_GROUP_INDEX_INS) \
+)
+
+
+
+// Binary Group 2 -- Time outputs
 enum {
     VN_TIME_TimeStartup,
     VN_TIME_TimeGps,
@@ -57,6 +85,11 @@ enum {
     VN_TIME_SyncInCnt,
     VN_TIME_RESV
 } VN_Time_Group_Output;
+
+#define VN300_TIME_SELECTED_FIELDS ( \
+    (1 << VN_TIME_TimeGpsPps) \
+    & (1 << VN_TIME_TimeUTC)
+)
 
 // Binary Group 3  -- IMU outputs
 enum {
@@ -75,6 +108,10 @@ enum {
     VN_IMU_RESV
 } VN_IMU_Group_Output;
 
+#define VN300_IMU_SELECTED_FIELDS ( \
+    (1 << VN_IMU_AngularRate)
+)
+
 // Binary Group 4 -- GPS outputs
 enum {
     VN_GPS_UTC,
@@ -92,6 +129,7 @@ enum {
     VN_GPS_Resv,
 } VN_GPS_Group_Output;
 
+
 // Binary Group 5 – Attitude Outputs
 enum {
     VN_ATT_Reserved0,
@@ -105,6 +143,11 @@ enum {
     VN_ATT_YprU,
     VN_ATT_Resv
 } VN_ATT_Group_Output;
+
+#define VN300_ATT_SELECTED_FIELDS ( \
+    (1 << VN_ATT_YawPitchRoll) & \
+    (1 << VN_ATT_Quaternion)  \
+)
 
 // Binary Group 6 – INS Outputs
 enum {
@@ -121,5 +164,15 @@ enum {
     VN_INS_VelU, // 4
     VN_INS_Resv, //68 + 64
 } VN_INS_GroupOutput;
+
+#define VN300_INS_SELECTED_FIELDS ( \
+    (1 << VN_INS_Status) & \
+    (1 << VN_INS_PosLla) &  \
+    (1 << VN_INS_PosEcef) &  \
+    (1 << VN_INS_VelBody) &  \
+    (1 << VN_INS_PosU) &  \
+    (1 << VN_INS_VelU)
+)
+
 
 #endif //VN300_VN300_MSG_INT_H
