@@ -43,20 +43,12 @@ static void* decoder_buf_alloc_cb(theft_t* t, theft_seed seed, void *env)
   (void)t;
   (void)env;
 
+  //TODO use seed
   vn300_msg_buf_wrap_t* pWrap = malloc(sizeof(vn300_msg_buf_wrap_t));
   if (pWrap == NULL) { return THEFT_ERROR; }
   pWrap->buf = malloc(vn300_standard_message_length());
   if (pWrap->buf == NULL) { return THEFT_ERROR; }
   pWrap->len = vn300_standard_message_length();
-
-  //TODO randomize the pWrap
-
-//  /* Get a random uint16_t, and only keep bottom 0-15 bits at random,
-//   * to bias towards smaller buffers. */
-//  *size = seed & 0xFFFF;
-//  *size &= (1 << (theft_random(t) & 0xF)) - 1;
-//
-//  if (*size == 0) { *size = 1; }   // round up to 1
 
   return pWrap;
 }
@@ -102,16 +94,16 @@ static struct theft_type_info decoder_buf_info = {
 
 static void set_random_pos3(theft_t* t, vn300_pos3_t* out)
 {
-  *out[0] = (vn300_pos )theft_random_double(t);
-  *out[1] = (vn300_pos )theft_random_double(t);
-  *out[2] = (vn300_pos )theft_random_double(t);
+  for (uint8_t i = 0; i < 3; i++) {
+    out->c[i] = (vn300_pos )theft_random_double(t);
+  }
 }
 
 static void set_random_vel3(theft_t* t, vn300_vel3_t* out)
 {
-  *out[0] = (vn300_vel )theft_random_double(t);
-  *out[1] = (vn300_vel )theft_random_double(t);
-  *out[2] = (vn300_vel )theft_random_double(t);
+  for (uint8_t i = 0; i < 3; i++) {
+    out->c[i] = (vn300_vel )theft_random_double(t);
+  }
 }
 
 static void* vn300_standard_msg_alloc_cb(theft_t* t, theft_seed seed, void *env)
@@ -121,14 +113,6 @@ static void* vn300_standard_msg_alloc_cb(theft_t* t, theft_seed seed, void *env)
   vn300_standard_msg_t* pMsg = malloc(sizeof(vn300_standard_msg_t));
   if (pMsg == NULL) { return THEFT_ERROR; }
   memset((void*)pMsg,0,sizeof(vn300_standard_msg_t));
-
-  pMsg->ins_status.mode = (uint8_t)(theft_random(t) & 0xFF);
-  pMsg->ins_status.gps_fix = (bool)(theft_random(t) & 0x01);
-  pMsg->ins_status.gps_heading_ins = (bool)(theft_random(t) & 0x01);
-  pMsg->ins_status.gps_compass = (bool)(theft_random(t) & 0x01);
-  pMsg->ins_status.imu_error = (bool)(theft_random(t) & 0x01);
-  pMsg->ins_status.mag_pres_error = (bool)(theft_random(t) & 0x01);
-  pMsg->ins_status.gps_error = (bool)(theft_random(t) & 0x01);
 
   set_random_pos3(t, &pMsg->pos_ecef);
   set_random_pos3(t, &pMsg->pos_lla);
@@ -154,15 +138,14 @@ static theft_hash vn300_standard_msg_hash_cb(void *instance, void *env)
   return theft_hash_onepass( (uint8_t *)pMsg, sizeof(*pMsg));
 }
 
-static void print_vn300_standard_msg(FILE *f, vn300_standard_msg_t msg)
+static void print_vn300_standard_msg(FILE *f, const vn300_standard_msg_t *msg)
 {
-  fprintf(f, "ins_status.mode: %u \n",msg.ins_status.mode);
-  fprintf(f, "pos_lla: [%6.3f, %6.3f, %6.3f]\n", msg.pos_lla[0], msg.pos_lla[1],msg.pos_lla[2] );
-  fprintf(f, "pos_ecef: [%6.3f, %6.3f, %6.3f]\n", msg.pos_ecef[0], msg.pos_ecef[1],msg.pos_ecef[2] );
-  fprintf(f, "vel_body: [%6.3f, %6.3f, %6.3f]\n", msg.vel_body[0], msg.vel_body[1],msg.vel_body[2] );
-  fprintf(f, "vel_ned: [%6.3f, %6.3f, %6.3f]\n", msg.vel_ned[0], msg.vel_ned[1],msg.vel_ned[2] );
-  fprintf(f, "vel_uncertainty: %6.3f \n",msg.vel_uncertainty);
-  fprintf(f, "pos_uncertainty: %6.3f \n",msg.pos_uncertainty);
+  fprintf(f, "pos_lla: [%6.3f, %6.3f, %6.3f]\n", msg->pos_lla.c[0], msg->pos_lla.c[1],msg->pos_lla.c[2] );
+  fprintf(f, "pos_ecef: [%6.3f, %6.3f, %6.3f]\n", msg->pos_ecef.c[0], msg->pos_ecef.c[1],msg->pos_ecef.c[2] );
+  fprintf(f, "vel_body: [%6.3f, %6.3f, %6.3f]\n", msg->vel_body.c[0], msg->vel_body.c[1],msg->vel_body.c[2] );
+  fprintf(f, "vel_ned: [%6.3f, %6.3f, %6.3f]\n", msg->vel_ned.c[0], msg->vel_ned.c[1],msg->vel_ned.c[2] );
+  fprintf(f, "pos_uncertainty: %6.3f \n",msg->pos_uncertainty);
+  fprintf(f, "vel_uncertainty: %6.3f \n",msg->vel_uncertainty);
 }
 
 static void vn300_standard_msg_print_cb(FILE *f, void *instance, void *env)
@@ -170,7 +153,7 @@ static void vn300_standard_msg_print_cb(FILE *f, void *instance, void *env)
   (void)env;
   vn300_standard_msg_t* pMsg = (vn300_standard_msg_t*)instance;
   fprintf(f," 0x%x : {\n", (uint32_t )pMsg);
-  print_vn300_standard_msg(f, *pMsg);
+  print_vn300_standard_msg(f, pMsg);
   fprintf(f,"\n}\n");
 
 }
@@ -194,9 +177,7 @@ prop_decoded_should_match_encoded(void* input)
 {
   vn300_standard_msg_t* pOrig = (vn300_standard_msg_t*)input;
   vn300_msg_buf_wrap_t encodedBuf = {0};
-  if (NULL == encodedBuf.buf) {
-    return THEFT_TRIAL_FAIL;
-  }
+
 
   //encode the msg as a buffer
   if (VN300_ENCODE_OK != encode_standard_msg(pOrig, &encodedBuf)) {

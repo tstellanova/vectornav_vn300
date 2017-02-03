@@ -40,7 +40,7 @@ uint16_t vn300_u16_CRC(uint8_t data[], uint32_t length)
  Max length of any field is 256.
  @see VN_Group_Index
  */
-const uint8_t kVN_Group_Field_Lengths[VN_GROUP_COUNT][VN_GROUP_FIELD_COUNT] =
+const uint8_t kVNGroupFieldLengths[VN_GROUP_COUNT][VN_GROUP_FIELD_COUNT] =
     {
         {8, 8, 8, 12, 16, 12, 24, 12, 12, 24, 20, 28, 2, 4, 8, 0}, //Group 1 (standard combo)
         {8, 8, 8, 2, 8, 8, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0}, //Group (TIME)
@@ -51,29 +51,28 @@ const uint8_t kVN_Group_Field_Lengths[VN_GROUP_COUNT][VN_GROUP_FIELD_COUNT] =
     };
 
 
-const
 
 //this defines the format of the standard payload
-static uint32_t vn300_standard_payload_length() {
+uint32_t vn300_standard_payload_length() {
   static uint32_t precalc_len = 0;
   if (0 == precalc_len) {
     precalc_len =
     // Group TIME
-    kVN_Group_Field_Lengths[VN_GROUP_INDEX_TIME][VN_TIME_TimeGpsPps] +
-    kVN_Group_Field_Lengths[VN_GROUP_INDEX_TIME][VN_TIME_TimeUTC] +
+    kVNGroupFieldLengths[VN_GROUP_INDEX_TIME][VN_TIME_TimeGpsPps] +
+    kVNGroupFieldLengths[VN_GROUP_INDEX_TIME][VN_TIME_TimeUTC] +
     // Group IMU
-    kVN_Group_Field_Lengths[VN_GROUP_INDEX_IMU][VN_IMU_AngularRate] +
+    kVNGroupFieldLengths[VN_GROUP_INDEX_IMU][VN_IMU_AngularRate] +
     // Group GPS
     // Group ATT
-    kVN_Group_Field_Lengths[VN_GROUP_INDEX_ATT][VN_ATT_YawPitchRoll] +
-    kVN_Group_Field_Lengths[VN_GROUP_INDEX_ATT][VN_ATT_Quaternion] +
+    kVNGroupFieldLengths[VN_GROUP_INDEX_ATT][VN_ATT_YawPitchRoll] +
+    kVNGroupFieldLengths[VN_GROUP_INDEX_ATT][VN_ATT_Quaternion] +
     // Group VN_GROUP_INDEX_INS
-    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_Status] +
-    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_PosLla] +
-    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_PosEcef] +
-    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_VelBody] +
-    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_PosU] +
-    kVN_Group_Field_Lengths[VN_GROUP_INDEX_INS][VN_INS_VelU] +
+    kVNGroupFieldLengths[VN_GROUP_INDEX_INS][VN_INS_PosLla] +
+    kVNGroupFieldLengths[VN_GROUP_INDEX_INS][VN_INS_PosEcef] +
+    kVNGroupFieldLengths[VN_GROUP_INDEX_INS][VN_INS_VelBody] +
+    kVNGroupFieldLengths[VN_GROUP_INDEX_INS][VN_INS_VelNed] +
+    kVNGroupFieldLengths[VN_GROUP_INDEX_INS][VN_INS_PosU] +
+    kVNGroupFieldLengths[VN_GROUP_INDEX_INS][VN_INS_VelU] +
     0;
   }
 
@@ -85,7 +84,7 @@ uint32_t vn300_standard_message_length() {
   static uint32_t precalc_len = 0;
   if (0 == precalc_len) {
     uint32_t payload_len = vn300_standard_payload_length();
-    precalc_len = (VN_HEADER_PAYLOAD_OFF - 1) +  payload_len + VN_CRC_LEN;
+    precalc_len = VN_HEADER_PAYLOAD_OFF + payload_len + VN_CRC_LEN;
   }
 
   return precalc_len;
