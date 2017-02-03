@@ -4,7 +4,6 @@
 
 #include <stdlib.h>
 #include <memory.h>
-#include <printf.h>
 
 #include "vn300_msg_types.h"
 #include "vn300_msg_int.h"
@@ -125,7 +124,6 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
   const uint32_t expectedPayloadLen = vn300_standard_payload_length();
   uint32_t encodedLen = (pBuf - out->buf );
   if ((payloadLen != expectedPayloadLen) || (out->len != encodedLen )) {
-    printf("payloadLen: %d  expected: %d",payloadLen, expectedPayloadLen);
     return VN300_ENCODE_FAIL;
   }
 
