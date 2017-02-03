@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "vn300_msg_int.h"
 
-uint8_t vn300_u8_checksum(uint8_t data[], uint32_t length)
+uint8_t vn_u8_checksum(const uint8_t *data, uint32_t length)
 {
   uint32_t i;
   uint8_t cksum = 0;
@@ -15,14 +15,13 @@ uint8_t vn300_u8_checksum(uint8_t data[], uint32_t length)
   return cksum;
 }
 
-uint16_t vn300_u16_CRC(uint8_t data[], uint32_t length)
+uint16_t vn_u16_crc(const uint8_t *data, uint32_t length)
 {
-  unsigned int i;
-  unsigned short crc = 0;
-  for(i=0; i<length; i++){
-    crc  = (unsigned char)(crc >> 8) | (crc << 8);
+  uint16_t crc = 0;
+  for(uint32_t i=0; i<length; i++){
+    crc  = (uint8_t)(crc >> 8) | (crc << 8);
     crc ^= data[i];
-    crc ^= (unsigned char)(crc & 0xff) >> 4;
+    crc ^= (uint8_t)(crc & 0xff) >> 4;
     crc ^= crc << 12;
     crc ^= (crc & 0x00ff) << 5;
   }

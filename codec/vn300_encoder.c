@@ -12,6 +12,18 @@
 extern const uint8_t kVNGroupFieldLengths[VN_GROUP_COUNT][VN_GROUP_FIELD_COUNT];
 
 
+static void vn_encode_u16(uint16_t src, uint8_t** hOut)
+{
+  uint8_t* pOut = *hOut;
+  memcpy(pOut, &src, sizeof(uint16_t));
+  *hOut += sizeof(uint16_t);
+}
+
+static void vn_encode_crc(uint16_t crc, uint8_t** hOut)
+{
+  vn_encode_u16(crc,hOut);
+}
+
 static void vn_encode_float(float src, uint8_t** hOut)
 {
   uint8_t* pOut = *hOut;
@@ -119,7 +131,14 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
 
   const uint32_t payloadLen = (pBuf - payloadStart);
 
-  pBuf += VN_CRC_LEN; //TODO add CRC
+  //The CRC is calculated over the packet starting just after the sync byte in the header
+  // (not including the sync byte) and ending at the end of the payload.
+  const uint8_t* pCrcDataStart = (out->buf + 1); //skip SYNC byte
+  const uint32_t kCrcDataLen = vn300_standard_message_length() - 1 - VN_CRC_LEN;
+  uint16_t current_crc = vn_u16_crc(pCrcDataStart,kCrcDataLen);
+
+  vn_encode_crc(current_crc, &pBuf);
+
 
   const uint32_t expectedPayloadLen = vn300_standard_payload_length();
   uint32_t encodedLen = (pBuf - out->buf );
