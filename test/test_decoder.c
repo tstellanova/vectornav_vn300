@@ -38,17 +38,39 @@ static bool get_time_seed(theft_seed *seed)
 
 // === Setup for decoder fuzzing
 
+
+static vn300_msg_buf_wrap_t* alloc_empty_standard_msg(theft_t* t, theft_seed seed, void *env)
+{
+  (void)t;
+  (void)env;
+  (void)seed; //todo use seed if provided
+
+  vn300_msg_buf_wrap_t* pWrap = malloc(sizeof(vn300_msg_buf_wrap_t));
+  if (NULL == pWrap) {
+    return NULL;
+  }
+
+
+  pWrap->buf = malloc(vn300_standard_message_length());
+  if (pWrap->buf == NULL) {
+    return NULL;
+  }
+
+  pWrap->len = vn300_standard_message_length();
+
+  return pWrap;
+
+}
+
 static void* decoder_buf_alloc_cb(theft_t* t, theft_seed seed, void *env)
 {
   (void)t;
   (void)env;
 
-  //TODO use seed
-  vn300_msg_buf_wrap_t* pWrap = malloc(sizeof(vn300_msg_buf_wrap_t));
+  vn300_msg_buf_wrap_t* pWrap = alloc_empty_standard_msg(t,seed,env);
   if (pWrap == NULL) { return THEFT_ERROR; }
-  pWrap->buf = malloc(vn300_standard_message_length());
-  if (pWrap->buf == NULL) { return THEFT_ERROR; }
-  pWrap->len = vn300_standard_message_length();
+
+  //TODO insert some random noise for testing
 
   return pWrap;
 }
@@ -178,7 +200,6 @@ prop_decoded_should_match_encoded(void* input)
   vn300_standard_msg_t* pOrig = (vn300_standard_msg_t*)input;
   vn300_msg_buf_wrap_t encodedBuf = {0};
 
-
   //encode the msg as a buffer
   if (VN300_ENCODE_OK != encode_standard_msg(pOrig, &encodedBuf)) {
     return THEFT_TRIAL_FAIL;
@@ -258,13 +279,38 @@ TEST decoder_should_reject_missing_sync_header(void)
   PASS();
 }
 
+TEST verify_crc(void)
+{
+  //16-bit CRC-CCITT ("Xmodem")
+  //verified with https://www.lammertbies.nl/comm/info/crc-calculation.html
+
+  const uint8_t* kTestData0 = (uint8_t*)"";
+  const uint32_t kTestData0Len = 0;
+  uint16_t testData0_crc = vn_u16_crc(kTestData0, kTestData0Len);
+  ASSERT_EQ(0, testData0_crc);
+
+  //CRC value for "ROCK" is 0x08FF
+  const uint8_t* kTestData1 = (uint8_t*)"ROCK";
+  const uint32_t kTestData1Len = strlen((char*)kTestData1);
+  uint16_t testData1_crc = vn_u16_crc(kTestData1, kTestData1Len);
+  ASSERT_EQ(0x08FF, testData1_crc);
+
+  //CRC value for the string "12345678" is 0x9015
+  const uint8_t* kTestData3 = (uint8_t*)"12345678";
+  const uint32_t kTestData3Len = strlen((char*)kTestData3);
+  uint16_t testData3_crc = vn_u16_crc(kTestData3, kTestData3Len);
+  ASSERT_EQ(0x9015, testData3_crc);
+
+  PASS();
+}
 
 SUITE(decoding)
 {
+  RUN_TEST(verify_crc);
   RUN_TEST(decoder_should_reject_null_input_pointer);
   RUN_TEST(decoder_should_reject_empty_msg);
   RUN_TEST(decoder_should_reject_missing_sync_header);
-  RUN_TEST(decoder_should_not_get_stuck);
+//  RUN_TEST(decoder_should_not_get_stuck);
   RUN_TEST(encoded_and_decoded_data_should_match);
 }
 

@@ -7,9 +7,8 @@
 
 uint8_t vn_u8_checksum(const uint8_t *data, uint32_t length)
 {
-  uint32_t i;
   uint8_t cksum = 0;
-  for(i=0; i<length; i++){
+  for(uint32_t i=0; i<length; i++){
     cksum ^= data[i];
   }
   return cksum;

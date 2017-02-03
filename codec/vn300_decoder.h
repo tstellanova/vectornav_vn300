@@ -13,6 +13,7 @@ typedef enum {
     VN300_DECODE_OK,
     VN300_DECODE_EMPTY_INPUT,
     VN300_DECODE_BAD_INPUT,
+    VN300_DECODE_BAD_CRC,
     VN300_DECODE_FAIL
 } vn300_decode_res;
 

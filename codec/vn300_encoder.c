@@ -12,6 +12,8 @@
 extern const uint8_t kVNGroupFieldLengths[VN_GROUP_COUNT][VN_GROUP_FIELD_COUNT];
 
 
+//TODO we're assuming same endianness here, might be unsafe
+
 static void vn_encode_u16(uint16_t src, uint8_t** hOut)
 {
   uint8_t* pOut = *hOut;
@@ -49,7 +51,7 @@ static void vn_encode_vel3(vn300_vel3_t* in, uint8_t** hOut)
   }
 }
 
-static void vn_write_double(double src, uint8_t** hOut)
+static void vn_encode_double(double src, uint8_t **hOut)
 {
   uint8_t* pOut = *hOut;
   memcpy(pOut, &src, sizeof(double));
@@ -59,10 +61,10 @@ static void vn_write_double(double src, uint8_t** hOut)
 
 static void vn_encode_position(vn300_pos in, uint8_t **hOut)
 {
-  vn_write_double((double)in, hOut);
+  vn_encode_double((double) in, hOut);
 }
 
-static void vn_encoded_pos3(vn300_pos3_t *in, uint8_t **hOut)
+static void vn_encode_pos3(vn300_pos3_t *in, uint8_t **hOut)
 {
   for (uint8_t i = 0; i < 3; i++) {
     vn_encode_position(in->c[i], hOut);
@@ -104,7 +106,7 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
   pBuf += VN_HEADER_Payload; //skip the header, get to the payload
   const uint8_t* payloadStart = pBuf;
 
-  //TODO properly encode the following
+  //====== TODO properly encode the following =====
   groupIdx = VN_GROUP_INDEX_TIME;
   field_len = kVNGroupFieldLengths[groupIdx][VN_TIME_TimeGpsPps];
   pBuf+=field_len;//TODO VN_TIME_TimeGpsPps
@@ -120,9 +122,10 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
   pBuf+=field_len; //TODO VN_ATT_YawPitchRoll
   field_len =  kVNGroupFieldLengths[groupIdx][VN_ATT_Quaternion];
   pBuf+=field_len; //TODO VN_ATT_Quaternion
+  //====== TODO properly encode the above =======
 
-  vn_encoded_pos3(&in->pos_lla, &pBuf); //VN_INS_PosLla
-  vn_encoded_pos3(&in->pos_ecef,&pBuf);//VN_INS_PosEcef
+  vn_encode_pos3(&in->pos_lla, &pBuf); //VN_INS_PosLla
+  vn_encode_pos3(&in->pos_ecef, &pBuf);//VN_INS_PosEcef
   vn_encode_vel3(&in->vel_body, &pBuf);//VN_INS_VelBody
   vn_encode_vel3(&in->vel_ned, &pBuf);//VN_INS_VelNed
 
