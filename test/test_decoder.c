@@ -155,9 +155,8 @@ static void* vn300_standard_msg_alloc_cb(theft_t* t, theft_seed seed, void *env)
   if (pMsg == NULL) { return THEFT_ERROR; }
   memset((void*)pMsg,0,sizeof(vn300_standard_msg_t));
 
-  pMsg->gps_nanoseconds = 0;
 //  memset(&pMsg->angular_rate,0, sizeof(pMsg->angular_rate));
-//  set_random_u64(t, &pMsg->gps_nanoseconds);
+  set_random_u64(t, &pMsg->gps_nanoseconds);
 //  set_random_vec3f(t, &pMsg->angular_rate);
   set_random_pos3(t, &pMsg->pos_ecef);
   set_random_pos3(t, &pMsg->pos_lla);
