@@ -110,8 +110,6 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
   groupIdx = VN_GROUP_INDEX_TIME;
   field_len = kVNGroupFieldLengths[groupIdx][VN_TIME_TimeGpsPps];
   pBuf+=field_len;//TODO VN_TIME_TimeGpsPps
-  field_len = kVNGroupFieldLengths[groupIdx][VN_TIME_TimeUTC];
-  pBuf+=field_len; //TODO VN_TIME_TimeUTC
 
   groupIdx = VN_GROUP_INDEX_IMU;
   field_len = kVNGroupFieldLengths[groupIdx][VN_IMU_AngularRate];

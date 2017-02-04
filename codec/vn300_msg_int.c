@@ -57,7 +57,6 @@ uint32_t vn300_standard_payload_length() {
     precalc_len =
     // Group TIME
     kVNGroupFieldLengths[VN_GROUP_INDEX_TIME][VN_TIME_TimeGpsPps] +
-    kVNGroupFieldLengths[VN_GROUP_INDEX_TIME][VN_TIME_TimeUTC] +
     // Group IMU
     kVNGroupFieldLengths[VN_GROUP_INDEX_IMU][VN_IMU_AngularRate] +
     // Group GPS

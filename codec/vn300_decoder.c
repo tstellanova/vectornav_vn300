@@ -110,8 +110,6 @@ vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_stand
   groupIdx = VN_GROUP_INDEX_TIME;
   field_len = kVNGroupFieldLengths[groupIdx][VN_TIME_TimeGpsPps];
   pBuf+=field_len;//TODO VN_TIME_TimeGpsPps
-  field_len = kVNGroupFieldLengths[groupIdx][VN_TIME_TimeUTC];
-  pBuf+=field_len; //TODO VN_TIME_TimeUTC
 
   groupIdx = VN_GROUP_INDEX_IMU;
   field_len = kVNGroupFieldLengths[groupIdx][VN_IMU_AngularRate];
