@@ -50,7 +50,6 @@ static vn300_msg_buf_wrap_t* alloc_empty_standard_msg(theft_t* t, theft_seed see
     return NULL;
   }
 
-
   pWrap->buf = malloc(vn300_standard_message_length());
   if (pWrap->buf == NULL) {
     return NULL;
@@ -200,22 +199,23 @@ prop_decoded_should_match_encoded(void* input)
   vn300_standard_msg_t* pOrig = (vn300_standard_msg_t*)input;
   vn300_msg_buf_wrap_t encodedBuf = {0};
 
-  //encode the msg as a buffer
+  //encode the original message struct as a buffer
   if (VN300_ENCODE_OK != encode_standard_msg(pOrig, &encodedBuf)) {
     return THEFT_TRIAL_FAIL;
   }
 
-  //TODO decode the buffer into a msg
+  //decode the encoded buffer into a decoded message struct
   vn300_standard_msg_t decodedMsg;
   if (VN300_DECODE_OK != decode_standard_msg(&encodedBuf, &decodedMsg)) {
     return THEFT_TRIAL_FAIL;
   }
 
-  //TODO compare the input vn300_standard_msg and decoded output
+  //compare the original message struct to the decoded message struct
+  if (0 != memcmp(pOrig, &decodedMsg, sizeof(decodedMsg)) ) {
+    return THEFT_TRIAL_FAIL;
+  }
 
-
-
-  return THEFT_TRIAL_FAIL;
+  return THEFT_TRIAL_PASS;
 }
 
 

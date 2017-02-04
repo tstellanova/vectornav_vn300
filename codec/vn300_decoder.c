@@ -19,7 +19,7 @@ extern const uint8_t kVNGroupFieldLengths[VN_GROUP_COUNT][VN_GROUP_FIELD_COUNT];
 static void vn_decode_u16(uint16_t* dest, uint8_t** hInOut)
 {
   uint8_t* pIn = *hInOut;
-  memcpy(&dest, pIn, sizeof(uint16_t));
+  memcpy(dest, pIn, sizeof(uint16_t));
   *hInOut += sizeof(uint16_t);
 }
 
@@ -91,7 +91,7 @@ vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_stand
   const uint32_t kCrcDataLen = vn300_standard_message_length() - 1 - VN_CRC_LEN;
   uint16_t current_crc = vn_u16_crc(pCrcDataStart,kCrcDataLen);
   uint16_t input_crc = 0;
-  uint8_t* pCrcRead = in->buf + vn300_standard_message_length() - VN_CRC_LEN;
+  uint8_t* pCrcRead = in->buf + (vn300_standard_message_length() - VN_CRC_LEN);
   vn_decode_crc(&input_crc, &pCrcRead);
   if (input_crc != current_crc) {
     return VN300_DECODE_BAD_CRC;
