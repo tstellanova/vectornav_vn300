@@ -123,16 +123,9 @@ vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_stand
 
 
   vn_decode_u64(&out->gps_nanoseconds, &pBuf); //VN_TIME_TimeGps
-//  vn_decode_vec3f(&out->angular_rate, &pBuf); //VN_IMU_AngularRate
+  vn_decode_vec3f(&out->angular_rate, &pBuf); //VN_IMU_AngularRate
 
   //====== TODO properly decode the following
-//  groupIdx = VN_GROUP_INDEX_TIME;
-//  field_len = kVNGroupFieldLengths[groupIdx][VN_TIME_TimeGps];
-//  pBuf+=field_len;//TODO VN_TIME_TimeGps
-
-  groupIdx = VN_GROUP_INDEX_IMU;
-  field_len = kVNGroupFieldLengths[groupIdx][VN_IMU_AngularRate];
-  pBuf+=field_len;; //TODO VN_IMU_AngularRate
 
   groupIdx = VN_GROUP_INDEX_ATT;
   field_len =  kVNGroupFieldLengths[groupIdx][VN_ATT_YawPitchRoll];

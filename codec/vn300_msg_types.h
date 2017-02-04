@@ -74,11 +74,6 @@ typedef vn_vec3d vn300_pos3_t;
 typedef vn_vec3f vn300_vel3_t;
 
 
-typedef vn300_vel3_t vn300_VelBody_t ;
-typedef vn300_vel3_t vn300_VelNed_t ;
-typedef vn300_pos3_t vn300_PosEcef_t ;
-typedef vn300_pos3_t vn300_PosLla_t ;
-
 typedef float vn_uncertainty;
 typedef uint64_t vn_time_nanoseconds;
 
@@ -90,20 +85,19 @@ typedef struct {
 
 
 
-
 typedef struct {
     vn_time_nanoseconds   gps_nanoseconds;
-//    vn_vec3f              angular_rate;
+    vn_vec3f              angular_rate;
 
-    vn300_PosLla_t    pos_lla;
-    vn300_PosEcef_t   pos_ecef;
-    vn300_VelBody_t   vel_body;
-    vn300_VelNed_t    vel_ned; //velocity in m/s
+    vn300_pos3_t    pos_lla;
+    vn300_pos3_t   pos_ecef;
+    vn300_vel3_t   vel_body;
+    vn300_vel3_t    vel_ned; //velocity in m/s
 
     vn_uncertainty    pos_uncertainty; // uncertainty (1 Sigma) in the current position estimate, in meters.
     vn_uncertainty    vel_uncertainty; // uncertainty (1 Sigma) in the current velocity estimate, in m/s.
 
-} vn300_standard_msg_t;
+} __attribute__((packed)) vn300_standard_msg_t ; //we use packed so that we can use memcmp to compares
 
 
 
