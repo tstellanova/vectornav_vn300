@@ -155,7 +155,7 @@ static void* vn300_standard_msg_alloc_cb(theft_t* t, theft_seed seed, void *env)
   if (pMsg == NULL) { return THEFT_ERROR; }
   memset((void*)pMsg,0,sizeof(vn300_standard_msg_t));
 
-//  pMsg->gps_nanoseconds = 0;
+  pMsg->gps_nanoseconds = 0;
 //  memset(&pMsg->angular_rate,0, sizeof(pMsg->angular_rate));
 //  set_random_u64(t, &pMsg->gps_nanoseconds);
 //  set_random_vec3f(t, &pMsg->angular_rate);
@@ -185,7 +185,7 @@ static theft_hash vn300_standard_msg_hash_cb(void *instance, void *env)
 
 static void print_vn300_standard_msg(FILE *f, const vn300_standard_msg_t *msg)
 {
-//  fprintf(f, "gps_nanoseconds: %" PRIu64 "\n", (uint64_t)msg->gps_nanoseconds);
+  fprintf(f, "gps_nanoseconds: %" PRIu64 "\n", (uint64_t)msg->gps_nanoseconds);
 //  fprintf(f, "angular_rate: [%6.3f, %6.3f, %6.3f]\n", msg->angular_rate.c[0], msg->angular_rate.c[1],msg->angular_rate.c[2]);
 
   fprintf(f, "pos_lla: [%6.3f, %6.3f, %6.3f]\n", msg->pos_lla.c[0], msg->pos_lla.c[1],msg->pos_lla.c[2] );

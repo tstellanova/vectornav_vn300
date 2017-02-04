@@ -128,13 +128,13 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
   const uint8_t* payloadStart = pBuf;
 
 
-//  vn_encode_nanoseconds(&in->gps_nanoseconds, &pBuf); //VN_TIME_TimeGps
+  vn_encode_nanoseconds(&in->gps_nanoseconds, &pBuf); //VN_TIME_TimeGps
 //  vn_encode_vec3f(&in->angular_rate, &pBuf); //VN_IMU_AngularRate
 
   //====== TODO properly encode the following =====
-  groupIdx = VN_GROUP_INDEX_TIME;
-  field_len = kVNGroupFieldLengths[groupIdx][VN_TIME_TimeGps];
-  pBuf+=field_len;//TODO VN_TIME_TimeGpsPps
+//  groupIdx = VN_GROUP_INDEX_TIME;
+//  field_len = kVNGroupFieldLengths[groupIdx][VN_TIME_TimeGps];
+//  pBuf+=field_len;//TODO VN_TIME_TimeGps
 
   groupIdx = VN_GROUP_INDEX_IMU;
   field_len = kVNGroupFieldLengths[groupIdx][VN_IMU_AngularRate];
