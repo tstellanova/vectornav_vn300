@@ -14,6 +14,19 @@ extern const uint8_t kVNGroupFieldLengths[VN_GROUP_COUNT][VN_GROUP_FIELD_COUNT];
 
 //TODO we're assuming same endianness here, might be unsafe
 
+
+static void vn_encode_u64(const uint64_t* src, uint8_t** hOut)
+{
+  uint8_t* pOut = *hOut;
+  memcpy(pOut, src, sizeof(uint64_t));
+  *hOut += sizeof(uint64_t);
+}
+
+static void vn_encode_nanoseconds(const vn_time_nanoseconds* src, uint8_t** hOut)
+{
+  vn_encode_u64(src, hOut);
+}
+
 static void vn_encode_u16(uint16_t src, uint8_t** hOut)
 {
   uint8_t* pOut = *hOut;
@@ -50,6 +63,14 @@ static void vn_encode_vel3(vn300_vel3_t* in, uint8_t** hOut)
     vn_encode_vel(in->c[i], hOut);
   }
 }
+
+static void vn_encode_vec3f(vn_vec3f* in, uint8_t** hOut)
+{
+  for (uint8_t i = 0; i < 3; i++) {
+    vn_encode_float(in->c[i], hOut);
+  }
+}
+
 
 static void vn_encode_double(double src, uint8_t **hOut)
 {
@@ -106,9 +127,13 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
   pBuf += VN_HEADER_Payload; //skip the header, get to the payload
   const uint8_t* payloadStart = pBuf;
 
+
+//  vn_encode_nanoseconds(&in->gps_nanoseconds, &pBuf); //VN_TIME_TimeGps
+//  vn_encode_vec3f(&in->angular_rate, &pBuf); //VN_IMU_AngularRate
+
   //====== TODO properly encode the following =====
   groupIdx = VN_GROUP_INDEX_TIME;
-  field_len = kVNGroupFieldLengths[groupIdx][VN_TIME_TimeGpsPps];
+  field_len = kVNGroupFieldLengths[groupIdx][VN_TIME_TimeGps];
   pBuf+=field_len;//TODO VN_TIME_TimeGpsPps
 
   groupIdx = VN_GROUP_INDEX_IMU;
@@ -121,6 +146,7 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
   field_len =  kVNGroupFieldLengths[groupIdx][VN_ATT_Quaternion];
   pBuf+=field_len; //TODO VN_ATT_Quaternion
   //====== TODO properly encode the above =======
+
 
   vn_encode_pos3(&in->pos_lla, &pBuf); //VN_INS_PosLla
   vn_encode_pos3(&in->pos_ecef, &pBuf);//VN_INS_PosEcef

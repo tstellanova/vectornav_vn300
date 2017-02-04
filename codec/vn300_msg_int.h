@@ -97,7 +97,7 @@ enum {
 } VN_Time_Group_Output;
 
 #define VN300_TIME_SELECTED_FIELDS ( \
-    (1 << VN_TIME_TimeGpsPps) \
+    (1 << VN_TIME_TimeGps) \
 )
 
 // Binary Group 3  -- IMU outputs

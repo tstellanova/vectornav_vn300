@@ -80,6 +80,7 @@ typedef vn300_pos3_t vn300_PosEcef_t ;
 typedef vn300_pos3_t vn300_PosLla_t ;
 
 typedef float vn_uncertainty;
+typedef uint64_t vn_time_nanoseconds;
 
 
 typedef struct {
@@ -91,6 +92,9 @@ typedef struct {
 
 
 typedef struct {
+//    vn_time_nanoseconds   gps_nanoseconds;
+//    vn_vec3f              angular_rate;
+
     vn300_PosLla_t    pos_lla;
     vn300_PosEcef_t   pos_ecef;
     vn300_VelBody_t   vel_body;
