@@ -236,9 +236,14 @@ static void* vn300_standard_msg_alloc_cb(theft_t* t, theft_seed seed, void *env)
   if (pMsg == NULL) { return THEFT_ERROR; }
   memset((void*)pMsg,0,sizeof(vn300_standard_msg_t));
 
-
   set_random_u64(t, &pMsg->gps_nanoseconds);
   set_random_vec3f(t, &pMsg->angular_rate);
+
+//  set_random_vec3d(t, &pMsg->euler_yaw_pitch_roll); //VN_ATT_YawPitchRoll
+
+//  field_len =  kVNGroupFieldLengths[groupIdx][VN_ATT_Quaternion];
+
+
   set_random_pos3(t, &pMsg->pos_ecef);
   set_random_pos3(t, &pMsg->pos_lla);
   set_random_vel3(t, &pMsg->vel_body);
@@ -253,7 +258,8 @@ static void* vn300_standard_msg_alloc_cb(theft_t* t, theft_seed seed, void *env)
 static void vn300_standard_msg_free_cb(void *instance, void *env)
 {
   (void)env;
-  free(instance);
+  vn300_standard_msg_t* pMsg = (vn300_standard_msg_t*)instance;
+  free(pMsg);
 }
 
 static theft_hash vn300_standard_msg_hash_cb(void *instance, void *env)
@@ -267,6 +273,7 @@ static void print_vn300_standard_msg(FILE *f, const vn300_standard_msg_t *msg)
 {
   fprintf(f, "gps_nanoseconds: %" PRIu64 "\n", (uint64_t)msg->gps_nanoseconds);
   fprintf(f, "angular_rate: [%6.3f, %6.3f, %6.3f]\n", msg->angular_rate.c[0], msg->angular_rate.c[1],msg->angular_rate.c[2]);
+  fprintf(f, "euler_yaw_pitch_roll: [%6.3f, %6.3f, %6.3f]\n", msg->euler_yaw_pitch_roll.c[0], msg->euler_yaw_pitch_roll.c[1],msg->euler_yaw_pitch_roll.c[2]);
 
   fprintf(f, "pos_lla: [%6.3f, %6.3f, %6.3f]\n", msg->pos_lla.c[0], msg->pos_lla.c[1],msg->pos_lla.c[2] );
   fprintf(f, "pos_ecef: [%6.3f, %6.3f, %6.3f]\n", msg->pos_ecef.c[0], msg->pos_ecef.c[1],msg->pos_ecef.c[2] );

@@ -72,6 +72,9 @@ static void vn_encode_vec3f(vn_vec3f* in, uint8_t** hOut)
 }
 
 
+
+
+
 static void vn_encode_double(double src, uint8_t **hOut)
 {
   uint8_t* pOut = *hOut;
@@ -79,6 +82,12 @@ static void vn_encode_double(double src, uint8_t **hOut)
   *hOut += sizeof(double);
 }
 
+static void vn_encode_vec3d(vn_vec3d* in, uint8_t** hOut)
+{
+  for (uint8_t i = 0; i < 3; i++) {
+    vn_encode_double(in->c[i], hOut);
+  }
+}
 
 static void vn_encode_position(vn300_pos in, uint8_t **hOut)
 {
@@ -87,9 +96,7 @@ static void vn_encode_position(vn300_pos in, uint8_t **hOut)
 
 static void vn_encode_pos3(vn300_pos3_t *in, uint8_t **hOut)
 {
-  for (uint8_t i = 0; i < 3; i++) {
-    vn_encode_position(in->c[i], hOut);
-  }
+  vn_encode_vec3d(in, hOut);
 }
 
 
@@ -135,6 +142,9 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
 
   vn_encode_nanoseconds(&in->gps_nanoseconds, &pBuf); //VN_TIME_TimeGps
   vn_encode_vec3f(&in->angular_rate, &pBuf); //VN_IMU_AngularRate
+
+
+//  vn_encode_pos3(&in->euler_yaw_pitch_roll, &pBuf); //VN_ATT_YawPitchRoll
 
   //====== TODO properly encode the following =====
 

@@ -88,6 +88,7 @@ typedef struct {
 typedef struct {
     vn_time_nanoseconds   gps_nanoseconds;
     vn_vec3f              angular_rate;
+    vn300_pos3_t          euler_yaw_pitch_roll;
 
     vn300_pos3_t    pos_lla;
     vn300_pos3_t   pos_ecef;

@@ -76,6 +76,13 @@ static void vn_decode_double(double* dest, uint8_t **hInOut)
 }
 
 
+static void vn_decode_vec3d(vn300_pos3_t *dest, uint8_t **hInOut)
+{
+  for (uint8_t i = 0; i < 3; i++) {
+    vn_decode_double(&dest->c[i], hInOut);
+  }
+}
+
 static void vn_decode_position(vn300_pos* dest, uint8_t **hInOut)
 {
   vn_decode_double(dest, hInOut);
@@ -99,6 +106,9 @@ vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_stand
   if (VECTORNAV_HEADER_SYNC_BYTE != in->buf[VN_HEADER_Sync] ){
     return VN300_DECODE_BAD_INPUT;
   }
+
+  //clear any state in the output decoded msg
+  memset(out, 0, sizeof(vn300_standard_msg_t));
 
   //Verify CRC before trying to process the packet
   //The CRC is calculated over the packet starting just after the sync byte in the header
@@ -124,6 +134,8 @@ vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_stand
 
   vn_decode_u64(&out->gps_nanoseconds, &pBuf); //VN_TIME_TimeGps
   vn_decode_vec3f(&out->angular_rate, &pBuf); //VN_IMU_AngularRate
+//  vn_decode_vec3d(&out->euler_yaw_pitch_roll, &pBuf); //VN_ATT_YawPitchRoll
+
 
   //====== TODO properly decode the following
 
