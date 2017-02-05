@@ -17,11 +17,6 @@
 #include "vn300_decoder.h"
 
 
-#define ENCODED_BUF_INVALID_LEN   (1 << 1)
-#define ENCODED_BUF_VALID_PAYLOAD   (1 << 2)
-#define ENCODED_BUF_VALID_CRC   (1 << 3)
-
-
 typedef struct theft  theft_t;
 typedef struct {
     int limit;
@@ -74,34 +69,24 @@ static void* encoded_buf_alloc_cb(theft_t *t, theft_seed seed, void *env)
   //standard header declaration
   vn_encode_standard_header_group_fields(pWrap->buf);
 
-  //insert some random noise for testing
 
-  if (seed & ENCODED_BUF_INVALID_LEN) {
-    //randomize length
-    pWrap->len = (uint32_t )theft_random(t);
+  //randomize content of payload
+  uint8_t* pBuf = pWrap->buf + VN_HEADER_PAYLOAD_OFF;
+  const uint32_t payloadLen = vn300_standard_payload_length();
+  const uint32_t phraseLen = sizeof(uint64_t);
+  for (uint32_t i = 0; i < payloadLen; i += phraseLen, pBuf += phraseLen) {
+    uint64_t phrase = theft_random(t);
+    memcpy(pBuf, &phrase, phraseLen);
   }
 
-  if (seed & ENCODED_BUF_VALID_PAYLOAD) {
-    //randomize content of payload
-    uint8_t* pBuf = pWrap->buf + VN_HEADER_PAYLOAD_OFF;
-    const uint32_t payloadLen = vn300_standard_payload_length();
-    const uint32_t phraseLen = sizeof(uint64_t);
-    for (uint32_t i = 0; i < payloadLen; i += phraseLen, pBuf += phraseLen) {
-      uint64_t phrase = theft_random(t);
-      memcpy(pBuf, &phrase, phraseLen);
-    }
-  }
-
-  if (seed & ENCODED_BUF_VALID_CRC) {
-    //calculate correct CRC
-    const uint8_t* pCrcDataStart = (pWrap->buf + 1); //skip SYNC byte
-    const uint32_t kStdMsgLenMinusCRC = (vn300_standard_message_length() - VN_CRC_LEN);
-    const uint32_t kCrcDataLen = kStdMsgLenMinusCRC - 1;
-    uint16_t current_crc = vn_u16_crc(pCrcDataStart,kCrcDataLen);
-    //insert CRC at end of buffer
-    uint8_t* pCrcOut = pWrap->buf + kStdMsgLenMinusCRC;
-    memcpy(pCrcOut, &current_crc, sizeof(uint16_t));
-  }
+  //calculate correct CRC
+  const uint8_t* pCrcDataStart = (pWrap->buf + 1); //skip SYNC byte
+  const uint32_t kStdMsgLenMinusCRC = (vn300_standard_message_length() - VN_CRC_LEN);
+  const uint32_t kCrcDataLen = kStdMsgLenMinusCRC - 1;
+  uint16_t current_crc = vn_u16_crc(pCrcDataStart,kCrcDataLen);
+  //insert CRC at end of buffer
+  uint8_t* pCrcOut = pWrap->buf + kStdMsgLenMinusCRC;
+  memcpy(pCrcOut, &current_crc, sizeof(uint16_t));
 
   return pWrap;
 }
