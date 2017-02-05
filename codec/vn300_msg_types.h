@@ -65,14 +65,40 @@ typedef union
 } vn_vec3d;
 
 
+typedef union
+{
+  float c[4];		//indexable
+
+  /* Check if the compiler supports anonymous unions. */
+#if defined(__STDC_VERSION___) && (__STDC_VERSION__ >= 201112L) && defined(__GNUC__)
+  struct
+	{
+		float x;	/**< X component. */
+		float y;	/**< Y component. */
+		float z;	/**< Z component. */
+		float w;	/**< W component. */ //TODO check order
+	};
+
+	struct
+	{
+		float c0;	/**< Component 0. */
+		float c1;	/**< Component 1. */
+		float c2;	/**< Component 2. */
+		float c3;	/**< Component 3. */
+	};
+
+#endif
+
+} vn_vec4f;
+
+
 
 typedef uint16_t vn300_raw_status_t;
 
-typedef float vn300_vel;
-typedef double vn300_pos;
-typedef vn_vec3d vn300_pos3_t;
-typedef vn_vec3f vn300_vel3_t;
-
+typedef float vn_vel;
+typedef double vn_pos;
+typedef vn_vec3d vn_pos3_t;
+typedef vn_vec3f vn_vel3_t;
 
 typedef float vn_uncertainty;
 typedef uint64_t vn_time_nanoseconds;
@@ -88,12 +114,13 @@ typedef struct {
 typedef struct {
     vn_time_nanoseconds   gps_nanoseconds;
     vn_vec3f              angular_rate;
-    vn300_pos3_t          euler_yaw_pitch_roll;
+    vn_vec3f            euler_yaw_pitch_roll;
+    vn_vec4f            quaternion; //TODO rename
 
-    vn300_pos3_t    pos_lla;
-    vn300_pos3_t   pos_ecef;
-    vn300_vel3_t   vel_body;
-    vn300_vel3_t    vel_ned; //velocity in m/s
+    vn_pos3_t    pos_lla;
+    vn_pos3_t   pos_ecef;
+    vn_vel3_t   vel_body;
+    vn_vel3_t    vel_ned; //velocity in m/s
 
     vn_uncertainty    pos_uncertainty; // uncertainty (1 Sigma) in the current position estimate, in meters.
     vn_uncertainty    vel_uncertainty; // uncertainty (1 Sigma) in the current velocity estimate, in m/s.

@@ -53,10 +53,17 @@ static void vn_decode_vel(float* dest, uint8_t** hInOut)
   vn_decode_float(dest,hInOut);
 }
 
-static void vn_decode_vel3(vn300_vel3_t* dest, uint8_t** hInOut)
+static void vn_decode_vel3(vn_vel3_t* dest, uint8_t** hInOut)
 {
   for (uint8_t i = 0; i < 3; i++) {
     vn_decode_float(&dest->c[i] ,hInOut);
+  }
+}
+
+static void vn_decode_vec4f(vn_vec4f* dest, uint8_t** hInOut)
+{
+  for (uint8_t i = 0; i < 4; i++) {
+    vn_decode_float(&dest->c[i] , hInOut);
   }
 }
 
@@ -67,7 +74,6 @@ static void vn_decode_vec3f(vn_vec3f* dest, uint8_t** hInOut)
   }
 }
 
-
 static void vn_decode_double(double* dest, uint8_t **hInOut)
 {
   uint8_t* pIn = *hInOut;
@@ -75,26 +81,24 @@ static void vn_decode_double(double* dest, uint8_t **hInOut)
   *hInOut += sizeof(double);
 }
 
-
-static void vn_decode_vec3d(vn300_pos3_t *dest, uint8_t **hInOut)
+static void vn_decode_vec3d(vn_pos3_t *dest, uint8_t **hInOut)
 {
   for (uint8_t i = 0; i < 3; i++) {
     vn_decode_double(&dest->c[i], hInOut);
   }
 }
 
-static void vn_decode_position(vn300_pos* dest, uint8_t **hInOut)
+static void vn_decode_position(vn_pos* dest, uint8_t **hInOut)
 {
   vn_decode_double(dest, hInOut);
 }
 
-static void vn_decode_pos3(vn300_pos3_t *dest, uint8_t **hInOut)
+static void vn_decode_pos3(vn_pos3_t *dest, uint8_t **hInOut)
 {
   for (uint8_t i = 0; i < 3; i++) {
     vn_decode_double(&dest->c[i], hInOut);
   }
 }
-
 
 
 vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_standard_msg_t* out)
@@ -134,18 +138,8 @@ vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_stand
 
   vn_decode_u64(&out->gps_nanoseconds, &pBuf); //VN_TIME_TimeGps
   vn_decode_vec3f(&out->angular_rate, &pBuf); //VN_IMU_AngularRate
-//  vn_decode_vec3d(&out->euler_yaw_pitch_roll, &pBuf); //VN_ATT_YawPitchRoll
-
-
-  //====== TODO properly decode the following
-
-  groupIdx = VN_GROUP_INDEX_ATT;
-  field_len =  kVNGroupFieldLengths[groupIdx][VN_ATT_YawPitchRoll];
-  pBuf+=field_len; //TODO VN_ATT_YawPitchRoll
-  field_len =  kVNGroupFieldLengths[groupIdx][VN_ATT_Quaternion];
-  pBuf+=field_len; //TODO VN_ATT_Quaternion
-  //====== TODO properly decode the above
-
+  vn_decode_vec3f(&out->euler_yaw_pitch_roll, &pBuf); //VN_ATT_YawPitchRoll
+  vn_decode_vec4f(&out->quaternion, &pBuf); //VN_ATT_Quaternion
 
   vn_decode_pos3(&out->pos_lla,&pBuf); //VN_INS_PosLla
   vn_decode_pos3(&out->pos_ecef,&pBuf); //VN_INS_PosEcef

@@ -62,13 +62,11 @@ static void* encoded_buf_alloc_cb(theft_t *t, theft_seed seed, void *env)
 {
   (void)env;
 
-
   vn300_msg_buf_wrap_t* pWrap = alloc_empty_standard_msg();
   if (pWrap == NULL) { return THEFT_ERROR; }
 
   //standard header declaration
   vn_encode_standard_header_group_fields(pWrap->buf);
-
 
   //randomize content of payload
   uint8_t* pBuf = pWrap->buf + VN_HEADER_PAYLOAD_OFF;
@@ -168,25 +166,26 @@ prop_decoder_should_not_get_stuck(void* input)
   vn300_msg_buf_wrap_t* pWrap = (vn300_msg_buf_wrap_t*)input;
   vn300_standard_msg_t decoded = {0};
 
-
   vn300_decode_res decode_res = decode_standard_msg(pWrap, &decoded);
   //regardless of validity of input, this method should always return
   if (VN300_DECODE_OK != decode_res) {
-    if (VN300_DECODE_BAD_CRC == decode_res) {
-
-    }
+    return THEFT_TRIAL_FAIL;
   }
 
-
   return THEFT_TRIAL_PASS;
-
 }
-
-
 
 static void set_random_u64(theft_t* t, uint64_t* out)
 {
   *out = theft_random(t);
+}
+
+
+static void set_random_vec4f(theft_t* t, vn_vec4f* out)
+{
+  for (uint8_t i = 0; i < 4; i++) {
+    out->c[i] = (float )theft_random_double(t);
+  }
 }
 
 static void set_random_vec3f(theft_t* t, vn_vec3f* out)
@@ -199,16 +198,16 @@ static void set_random_vec3f(theft_t* t, vn_vec3f* out)
 static void set_random_vec3d(theft_t* t, vn_vec3d* out)
 {
   for (uint8_t i = 0; i < 3; i++) {
-    out->c[i] = (double )theft_random_double(t);
+    out->c[i] = theft_random_double(t);
   }
 }
 
-static void set_random_pos3(theft_t* t, vn300_pos3_t* out)
+static void set_random_pos3(theft_t* t, vn_pos3_t* out)
 {
   set_random_vec3d(t, out);
 }
 
-static void set_random_vel3(theft_t* t, vn300_vel3_t* out)
+static void set_random_vel3(theft_t* t, vn_vel3_t* out)
 {
   set_random_vec3f(t,out);
 }
@@ -223,19 +222,16 @@ static void* vn300_standard_msg_alloc_cb(theft_t* t, theft_seed seed, void *env)
 
   set_random_u64(t, &pMsg->gps_nanoseconds);
   set_random_vec3f(t, &pMsg->angular_rate);
-
-//  set_random_vec3d(t, &pMsg->euler_yaw_pitch_roll); //VN_ATT_YawPitchRoll
-
-//  field_len =  kVNGroupFieldLengths[groupIdx][VN_ATT_Quaternion];
-
+  set_random_vec3f(t, &pMsg->euler_yaw_pitch_roll); //VN_ATT_YawPitchRoll
+  set_random_vec4f(t, &pMsg->quaternion); //VN_ATT_Quaternion
 
   set_random_pos3(t, &pMsg->pos_ecef);
   set_random_pos3(t, &pMsg->pos_lla);
   set_random_vel3(t, &pMsg->vel_body);
   set_random_vel3(t, &pMsg->vel_ned);
 
-  pMsg->pos_uncertainty = (vn300_pos)theft_random_double(t);
-  pMsg->vel_uncertainty = (vn300_vel)theft_random_double(t);
+  pMsg->pos_uncertainty = (vn_pos)theft_random_double(t);
+  pMsg->vel_uncertainty = (vn_vel)theft_random_double(t);
 
   return pMsg;
 }
@@ -300,7 +296,8 @@ prop_decoded_should_match_encoded(void* input)
   vn300_msg_buf_wrap_t encodedBuf = {0};
 
   //encode the original message struct as a buffer
-  if (VN300_ENCODE_OK != encode_standard_msg(pOrig, &encodedBuf)) {
+  vn300_encode_res encode_res = encode_standard_msg(pOrig, &encodedBuf);
+  if (VN300_ENCODE_OK != encode_res) {
     return THEFT_TRIAL_FAIL;
   }
 
