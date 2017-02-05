@@ -98,6 +98,17 @@ static void vn_encode_header_group_fields(uint16_t fields, uint8_t* pOut)
   memcpy(pOut, &fields, sizeof(uint16_t));
 }
 
+void vn_encode_standard_header_group_fields(uint8_t* pBuf)
+{
+  // encode header fields
+  pBuf[VN_HEADER_Sync] = VECTORNAV_HEADER_SYNC_BYTE;
+  pBuf[VN_HEADER_Groups] = VN300_SELECTED_GROUPS;
+  vn_encode_header_group_fields(VN300_TIME_SELECTED_FIELDS,  &pBuf[VN_HEADER_GroupFields_TIME]);
+  vn_encode_header_group_fields(VN300_IMU_SELECTED_FIELDS,  &pBuf[VN_HEADER_GroupFields_IMU]);
+  vn_encode_header_group_fields(VN300_ATT_SELECTED_FIELDS,  &pBuf[VN_HEADER_GroupFields_ATT]);
+  vn_encode_header_group_fields(VN300_INS_SELECTED_FIELDS,  &pBuf[VN_HEADER_GroupFields_INS]);
+}
+
 vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wrap_t* out)
 {
   if (NULL == in) {
@@ -112,14 +123,8 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
   out->len = vn300_standard_message_length();
 
 
-  // encode header fields
-  pBuf[VN_HEADER_Sync] = VECTORNAV_HEADER_SYNC_BYTE;
-  pBuf[VN_HEADER_Groups] = VN300_SELECTED_GROUPS;
-  vn_encode_header_group_fields(VN300_TIME_SELECTED_FIELDS,  &pBuf[VN_HEADER_GroupFields_TIME]);
-  vn_encode_header_group_fields(VN300_IMU_SELECTED_FIELDS,  &pBuf[VN_HEADER_GroupFields_IMU]);
-  vn_encode_header_group_fields(VN300_ATT_SELECTED_FIELDS,  &pBuf[VN_HEADER_GroupFields_ATT]);
-  vn_encode_header_group_fields(VN300_INS_SELECTED_FIELDS,  &pBuf[VN_HEADER_GroupFields_INS]);
-
+  // encode header fields indicating which fields are active
+  vn_encode_standard_header_group_fields(pBuf);
 
   // see vn300_standard_payload_length for the fields included in the standard payload
   uint8_t groupIdx = 0;

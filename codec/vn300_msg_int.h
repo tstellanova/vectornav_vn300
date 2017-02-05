@@ -29,6 +29,12 @@ uint16_t vn_u16_crc(const uint8_t *data, uint32_t length);
 // 8 bit xor checksum
 uint8_t vn_u8_checksum(const uint8_t *data, uint32_t length);
 
+/**
+ * Insert the standard msg header group fields in the given buffer
+ * @param pBuf
+ */
+void vn_encode_standard_header_group_fields(uint8_t* pBuf);
+
 
 
 /**

@@ -17,13 +17,17 @@
 #include "vn300_decoder.h"
 
 
+#define ENCODED_BUF_INVALID_LEN   (1 << 1)
+#define ENCODED_BUF_VALID_PAYLOAD   (1 << 2)
+#define ENCODED_BUF_VALID_CRC   (1 << 3)
+
 
 typedef struct theft  theft_t;
 typedef struct {
     int limit;
     int fails;
     int dots;
-    uint16_t decoder_buffer_size;
+    uint32_t foo;
 } test_env_t;
 
 
@@ -40,11 +44,8 @@ static bool get_time_seed(theft_seed *seed)
 // === Setup for decoder fuzzing
 
 
-static vn300_msg_buf_wrap_t* alloc_empty_standard_msg(theft_t* t, theft_seed seed, void *env)
+static vn300_msg_buf_wrap_t* alloc_empty_standard_msg()
 {
-  (void)t;
-  (void)env;
-  (void)seed; //todo use seed if provided
 
   vn300_msg_buf_wrap_t* pWrap = malloc(sizeof(vn300_msg_buf_wrap_t));
   if (NULL == pWrap) {
@@ -62,32 +63,69 @@ static vn300_msg_buf_wrap_t* alloc_empty_standard_msg(theft_t* t, theft_seed see
 
 }
 
-static void* decoder_buf_alloc_cb(theft_t* t, theft_seed seed, void *env)
+static void* encoded_buf_alloc_cb(theft_t *t, theft_seed seed, void *env)
 {
-  (void)t;
   (void)env;
 
-  vn300_msg_buf_wrap_t* pWrap = alloc_empty_standard_msg(t,seed,env);
+
+  vn300_msg_buf_wrap_t* pWrap = alloc_empty_standard_msg();
   if (pWrap == NULL) { return THEFT_ERROR; }
 
-  //TODO insert some random noise for testing
+  //standard header declaration
+  vn_encode_standard_header_group_fields(pWrap->buf);
+
+  //insert some random noise for testing
+
+  if (seed & ENCODED_BUF_INVALID_LEN) {
+    //randomize length
+    pWrap->len = (uint32_t )theft_random(t);
+  }
+
+  if (seed & ENCODED_BUF_VALID_PAYLOAD) {
+    //randomize content of payload
+    uint8_t* pBuf = pWrap->buf + VN_HEADER_PAYLOAD_OFF;
+    const uint32_t payloadLen = vn300_standard_payload_length();
+    const uint32_t phraseLen = sizeof(uint64_t);
+    for (uint32_t i = 0; i < payloadLen; i += phraseLen, pBuf += phraseLen) {
+      uint64_t phrase = theft_random(t);
+      memcpy(pBuf, &phrase, phraseLen);
+    }
+  }
+
+  if (seed & ENCODED_BUF_VALID_CRC) {
+    //calculate correct CRC
+    const uint8_t* pCrcDataStart = (pWrap->buf + 1); //skip SYNC byte
+    const uint32_t kStdMsgLenMinusCRC = (vn300_standard_message_length() - VN_CRC_LEN);
+    const uint32_t kCrcDataLen = kStdMsgLenMinusCRC - 1;
+    uint16_t current_crc = vn_u16_crc(pCrcDataStart,kCrcDataLen);
+    //insert CRC at end of buffer
+    uint8_t* pCrcOut = pWrap->buf + kStdMsgLenMinusCRC;
+    memcpy(pCrcOut, &current_crc, sizeof(uint16_t));
+  }
 
   return pWrap;
 }
 
-static void decoder_buf_free_cb(void *instance, void *env)
+static void encoded_buf_free_cb(void *instance, void *env)
 {
   (void)env;
   vn300_msg_buf_wrap_t* pWrap = (vn300_msg_buf_wrap_t*)instance;
   free(pWrap->buf);
+  pWrap->buf = NULL;
   free(pWrap);
 }
 
-static theft_hash decoder_buf_hash_cb(void *instance, void *env)
+static theft_hash encoded_buf_hash_cb(void *instance, void *env)
 {
   (void)env;
   vn300_msg_buf_wrap_t* pWrap = (vn300_msg_buf_wrap_t*)instance;
-  return theft_hash_onepass(pWrap->buf, pWrap->len);
+
+  if (NULL != pWrap->buf) {
+    return theft_hash_onepass(pWrap->buf, vn300_standard_message_length());
+  }
+
+  return 0;
+
 }
 
 
@@ -97,20 +135,67 @@ static void print_standard_msg_buf(FILE *f, vn300_msg_buf_wrap_t* pWrap)
     fprintf(f, " %02x ", pWrap->buf[i]);
   }
 }
-static void decoder_buf_print_cb(FILE *f, void *instance, void *env)
+
+static void encoded_buf_print_cb(FILE *f, void *instance, void *env)
 {
   (void)env;
   vn300_msg_buf_wrap_t* pWrap = (vn300_msg_buf_wrap_t*)instance;
-  fprintf(f," 0x%x buf: 0x%x len: %u data: ", (uint32_t)pWrap, (uint32_t)(pWrap->buf), pWrap->len);
+  fprintf(f,"encoded_buf 0x%x buf: 0x%x len: %u data: ", (uint32_t)pWrap, (uint32_t)(pWrap->buf), pWrap->len);
   print_standard_msg_buf(f, pWrap);
 }
 
-static struct theft_type_info decoder_buf_info = {
-    .alloc = decoder_buf_alloc_cb,
-    .free = decoder_buf_free_cb,
-    .hash = decoder_buf_hash_cb,
-    .print = decoder_buf_print_cb,
+
+static theft_progress_callback_res
+generic_progress_cb(struct theft_trial_info *info, void *env)
+{
+  test_env_t *te = (test_env_t *)env;
+  if ((info->trial & 0xff) == 0) {
+    printf(".");
+    fflush(stdout);
+    te->dots++;
+    if (te->dots == 64) {
+      printf("\n");
+      te->dots = 0;
+    }
+  }
+
+  if (info->status == THEFT_TRIAL_FAIL) {
+    te->fails++;
+  }
+
+  if (te->fails > 10) {
+    return THEFT_PROGRESS_HALT;
+  }
+  return THEFT_PROGRESS_CONTINUE;
+}
+
+static struct theft_type_info encoded_buf_info = {
+    .alloc = encoded_buf_alloc_cb,
+    .free = encoded_buf_free_cb,
+    .hash = encoded_buf_hash_cb,
+//    .shrink = rbuf_shrink_cb,
+    .print = encoded_buf_print_cb,
 };
+
+static theft_trial_res
+prop_decoder_should_not_get_stuck(void* input)
+{
+  vn300_msg_buf_wrap_t* pWrap = (vn300_msg_buf_wrap_t*)input;
+  vn300_standard_msg_t decoded = {0};
+
+
+  vn300_decode_res decode_res = decode_standard_msg(pWrap, &decoded);
+  //regardless of validity of input, this method should always return
+  if (VN300_DECODE_OK != decode_res) {
+    if (VN300_DECODE_BAD_CRC == decode_res) {
+
+    }
+  }
+
+
+  return THEFT_TRIAL_PASS;
+
+}
 
 
 
@@ -135,16 +220,12 @@ static void set_random_vec3d(theft_t* t, vn_vec3d* out)
 
 static void set_random_pos3(theft_t* t, vn300_pos3_t* out)
 {
-  for (uint8_t i = 0; i < 3; i++) {
-    out->c[i] = (vn300_pos )theft_random_double(t);
-  }
+  set_random_vec3d(t, out);
 }
 
 static void set_random_vel3(theft_t* t, vn300_vel3_t* out)
 {
-  for (uint8_t i = 0; i < 3; i++) {
-    out->c[i] = (vn300_vel )theft_random_double(t);
-  }
+  set_random_vec3f(t,out);
 }
 
 static void* vn300_standard_msg_alloc_cb(theft_t* t, theft_seed seed, void *env)
@@ -155,9 +236,9 @@ static void* vn300_standard_msg_alloc_cb(theft_t* t, theft_seed seed, void *env)
   if (pMsg == NULL) { return THEFT_ERROR; }
   memset((void*)pMsg,0,sizeof(vn300_standard_msg_t));
 
+
   set_random_u64(t, &pMsg->gps_nanoseconds);
   set_random_vec3f(t, &pMsg->angular_rate);
-//  memset(&pMsg->angular_rate,0, sizeof(pMsg->angular_rate));
   set_random_pos3(t, &pMsg->pos_ecef);
   set_random_pos3(t, &pMsg->pos_lla);
   set_random_vel3(t, &pMsg->vel_body);
@@ -202,8 +283,9 @@ static void vn300_standard_msg_print_cb(FILE *f, void *instance, void *env)
   fprintf(f," 0x%x : {\n", (uint32_t )pMsg);
   print_vn300_standard_msg(f, pMsg);
   fprintf(f,"\n}\n");
-
 }
+
+
 
 static struct theft_type_info vn300_standard_msg_info = {
   .alloc = vn300_standard_msg_alloc_cb,
@@ -246,6 +328,8 @@ prop_decoded_should_match_encoded(void* input)
 }
 
 
+
+
 TEST encoded_and_decoded_data_should_match(void) {
   test_env_t env = { .limit = 1 << 11 };
 
@@ -258,9 +342,9 @@ TEST encoded_and_decoded_data_should_match(void) {
       .fun = prop_decoded_should_match_encoded,
       .type_info = {  &vn300_standard_msg_info },
       .seed = seed,
-      .trials = 100,
+      .trials = 100000,
       .env = &env,
-//      .progress_cb = progress_cb,
+      .progress_cb = generic_progress_cb,
   };
 
   theft_run_res res = theft_run(t, &cfg);
@@ -273,7 +357,28 @@ TEST encoded_and_decoded_data_should_match(void) {
 
 TEST decoder_should_not_get_stuck(void)
 {
-FAIL();
+  test_env_t env = { .limit = 1 << 11 };
+
+  theft_seed seed;
+  if (!get_time_seed(&seed)) { FAIL(); }
+
+  struct theft *t = theft_init(0);
+  struct theft_cfg cfg = {
+      .name = __func__,
+      .fun = prop_decoder_should_not_get_stuck,
+      .type_info = {  &encoded_buf_info },
+      .seed = seed,
+      .trials = 10000,
+      .env = &env,
+      .progress_cb = generic_progress_cb,
+
+  };
+
+  theft_run_res res = theft_run(t, &cfg);
+  theft_free(t);
+  printf("\n");
+      ASSERT_EQ(THEFT_RUN_PASS, res);
+      PASS();
 }
 
 TEST decoder_should_reject_null_input_pointer(void)
@@ -337,7 +442,7 @@ SUITE(decoding)
   RUN_TEST(decoder_should_reject_null_input_pointer);
   RUN_TEST(decoder_should_reject_empty_msg);
   RUN_TEST(decoder_should_reject_missing_sync_header);
-//  RUN_TEST(decoder_should_not_get_stuck);
+  RUN_TEST(decoder_should_not_get_stuck);
   RUN_TEST(encoded_and_decoded_data_should_match);
 }
 
