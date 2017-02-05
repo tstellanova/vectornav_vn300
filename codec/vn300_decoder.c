@@ -11,18 +11,7 @@
 
 
 
-extern const uint8_t kVNGroupFieldLengths[VN_GROUP_COUNT][VN_GROUP_FIELD_COUNT];
-
-
 //TODO we're assuming same endianness here, might be unsafe
-
-
-static void vn_decode_u64(uint64_t* dest, uint8_t** hInOut)
-{
-  uint8_t* pIn = *hInOut;
-  memcpy(dest, pIn, sizeof(uint64_t));
-  *hInOut += sizeof(uint64_t);
-}
 
 static void vn_decode_u16(uint16_t* dest, uint8_t** hInOut)
 {
@@ -31,9 +20,11 @@ static void vn_decode_u16(uint16_t* dest, uint8_t** hInOut)
   *hInOut += sizeof(uint16_t);
 }
 
-static void vn_decode_crc(uint16_t* crc, uint8_t** hInOut)
+static void vn_decode_u64(uint64_t* dest, uint8_t** hInOut)
 {
-  vn_decode_u16(crc,hInOut);
+  uint8_t* pIn = *hInOut;
+  memcpy(dest, pIn, sizeof(uint64_t));
+  *hInOut += sizeof(uint64_t);
 }
 
 static void vn_decode_float(float* dest, uint8_t** hInOut)
@@ -43,20 +34,17 @@ static void vn_decode_float(float* dest, uint8_t** hInOut)
   *hInOut += sizeof(float);
 }
 
-static void vn_decode_uncertainty(float* dest, uint8_t** hInOut)
+static void vn_decode_double(double* dest, uint8_t **hInOut)
 {
-  vn_decode_float(dest,hInOut);
+  uint8_t* pIn = *hInOut;
+  memcpy(dest, pIn, sizeof(double));
+  *hInOut += sizeof(double);
 }
 
-static void vn_decode_vel(float* dest, uint8_t** hInOut)
-{
-  vn_decode_float(dest,hInOut);
-}
-
-static void vn_decode_vel3(vn_vel3_t* dest, uint8_t** hInOut)
+static void vn_decode_vec3f(vn_vec3f* dest, uint8_t** hInOut)
 {
   for (uint8_t i = 0; i < 3; i++) {
-    vn_decode_float(&dest->c[i] ,hInOut);
+    vn_decode_float(&dest->c[i] , hInOut);
   }
 }
 
@@ -67,39 +55,12 @@ static void vn_decode_vec4f(vn_vec4f* dest, uint8_t** hInOut)
   }
 }
 
-static void vn_decode_vec3f(vn_vec3f* dest, uint8_t** hInOut)
-{
-  for (uint8_t i = 0; i < 3; i++) {
-    vn_decode_float(&dest->c[i] , hInOut);
-  }
-}
-
-static void vn_decode_double(double* dest, uint8_t **hInOut)
-{
-  uint8_t* pIn = *hInOut;
-  memcpy(dest, pIn, sizeof(double));
-  *hInOut += sizeof(double);
-}
-
 static void vn_decode_vec3d(vn_pos3_t *dest, uint8_t **hInOut)
 {
   for (uint8_t i = 0; i < 3; i++) {
     vn_decode_double(&dest->c[i], hInOut);
   }
 }
-
-static void vn_decode_position(vn_pos* dest, uint8_t **hInOut)
-{
-  vn_decode_double(dest, hInOut);
-}
-
-static void vn_decode_pos3(vn_pos3_t *dest, uint8_t **hInOut)
-{
-  for (uint8_t i = 0; i < 3; i++) {
-    vn_decode_double(&dest->c[i], hInOut);
-  }
-}
-
 
 vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_standard_msg_t* out)
 {
@@ -122,7 +83,7 @@ vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_stand
   uint16_t current_crc = vn_u16_crc(pCrcDataStart,kCrcDataLen);
   uint16_t input_crc = 0;
   uint8_t* pCrcRead = in->buf + (vn300_standard_message_length() - VN_CRC_LEN);
-  vn_decode_crc(&input_crc, &pCrcRead);
+  vn_decode_u16(&input_crc, &pCrcRead);
   if (input_crc != current_crc) {
     return VN300_DECODE_BAD_CRC;
   }
@@ -139,15 +100,15 @@ vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_stand
   vn_decode_u64(&out->gps_nanoseconds, &pBuf); //VN_TIME_TimeGps
   vn_decode_vec3f(&out->angular_rate, &pBuf); //VN_IMU_AngularRate
   vn_decode_vec3f(&out->euler_yaw_pitch_roll, &pBuf); //VN_ATT_YawPitchRoll
-  vn_decode_vec4f(&out->quaternion, &pBuf); //VN_ATT_Quaternion
+  vn_decode_vec4f(&out->att_quaternion, &pBuf); //VN_ATT_Quaternion
 
-  vn_decode_pos3(&out->pos_lla,&pBuf); //VN_INS_PosLla
-  vn_decode_pos3(&out->pos_ecef,&pBuf); //VN_INS_PosEcef
-  vn_decode_vel3(&out->vel_body,&pBuf);//VN_INS_VelBody
-  vn_decode_vel3(&out->vel_ned,&pBuf);//VN_INS_VelNed
+  vn_decode_vec3d(&out->pos_lla,&pBuf); //VN_INS_PosLla
+  vn_decode_vec3d(&out->pos_ecef,&pBuf); //VN_INS_PosEcef
+  vn_decode_vec3f(&out->vel_body,&pBuf);//VN_INS_VelBody
+  vn_decode_vec3f(&out->vel_ned,&pBuf);//VN_INS_VelNed
 
-  vn_decode_uncertainty(&out->pos_uncertainty, &pBuf); //VN_INS_PosU
-  vn_decode_uncertainty(&out->vel_uncertainty, &pBuf); //VN_INS_VelU
+  vn_decode_float(&out->pos_uncertainty, &pBuf); //VN_INS_PosU
+  vn_decode_float(&out->vel_uncertainty, &pBuf); //VN_INS_VelU
 
 
   const uint32_t payloadLen = (pBuf - payloadStart);

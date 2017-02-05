@@ -115,7 +115,7 @@ typedef struct {
     vn_time_nanoseconds   gps_nanoseconds;
     vn_vec3f              angular_rate;
     vn_vec3f            euler_yaw_pitch_roll;
-    vn_vec4f            quaternion; //TODO rename
+    vn_vec4f            att_quaternion;
 
     vn_pos3_t    pos_lla;
     vn_pos3_t   pos_ecef;

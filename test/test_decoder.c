@@ -223,7 +223,7 @@ static void* vn300_standard_msg_alloc_cb(theft_t* t, theft_seed seed, void *env)
   set_random_u64(t, &pMsg->gps_nanoseconds);
   set_random_vec3f(t, &pMsg->angular_rate);
   set_random_vec3f(t, &pMsg->euler_yaw_pitch_roll); //VN_ATT_YawPitchRoll
-  set_random_vec4f(t, &pMsg->quaternion); //VN_ATT_Quaternion
+  set_random_vec4f(t, &pMsg->att_quaternion); //VN_ATT_Quaternion
 
   set_random_pos3(t, &pMsg->pos_ecef);
   set_random_pos3(t, &pMsg->pos_lla);

@@ -9,22 +9,21 @@
 #include "vn300_msg_int.h"
 #include "vn300_encoder.h"
 
-extern const uint8_t kVNGroupFieldLengths[VN_GROUP_COUNT][VN_GROUP_FIELD_COUNT];
-
 
 //TODO we're assuming same endianness here, might be unsafe
 
-
-static void vn_encode_u64(const uint64_t* src, uint8_t** hOut)
+static void vn_encode_float(float src, uint8_t** hOut)
 {
   uint8_t* pOut = *hOut;
-  memcpy(pOut, src, sizeof(uint64_t));
-  *hOut += sizeof(uint64_t);
+  memcpy(pOut, &src, sizeof(float));
+  *hOut += sizeof(float);
 }
 
-static void vn_encode_nanoseconds(const vn_time_nanoseconds* src, uint8_t** hOut)
+static void vn_encode_double(double src, uint8_t **hOut)
 {
-  vn_encode_u64(src, hOut);
+  uint8_t* pOut = *hOut;
+  memcpy(pOut, &src, sizeof(double));
+  *hOut += sizeof(double);
 }
 
 static void vn_encode_u16(uint16_t src, uint8_t** hOut)
@@ -34,33 +33,11 @@ static void vn_encode_u16(uint16_t src, uint8_t** hOut)
   *hOut += sizeof(uint16_t);
 }
 
-static void vn_encode_crc(uint16_t crc, uint8_t** hOut)
-{
-  vn_encode_u16(crc,hOut);
-}
-
-static void vn_encode_float(float src, uint8_t** hOut)
+static void vn_encode_u64(const uint64_t* src, uint8_t** hOut)
 {
   uint8_t* pOut = *hOut;
-  memcpy(pOut, &src, sizeof(float));
-  *hOut += sizeof(float);
-}
-
-static void vn_encode_uncertainty(float src, uint8_t** hOut)
-{
-  vn_encode_float(src, hOut);
-}
-
-static void vn_encode_vel(float src, uint8_t** hOut)
-{
-  vn_encode_float(src, hOut);
-}
-
-static void vn_encode_vel3(vn_vel3_t* in, uint8_t** hOut)
-{
-  for (uint8_t i = 0; i < 3; i++) {
-    vn_encode_vel(in->c[i], hOut);
-  }
+  memcpy(pOut, src, sizeof(uint64_t));
+  *hOut += sizeof(uint64_t);
 }
 
 static void vn_encode_vec3f(vn_vec3f* in, uint8_t** hOut)
@@ -77,29 +54,11 @@ static void vn_encode_vec4f(vn_vec4f* in, uint8_t** hOut)
   }
 }
 
-
-static void vn_encode_double(double src, uint8_t **hOut)
-{
-  uint8_t* pOut = *hOut;
-  memcpy(pOut, &src, sizeof(double));
-  *hOut += sizeof(double);
-}
-
 static void vn_encode_vec3d(vn_vec3d* in, uint8_t** hOut)
 {
   for (uint8_t i = 0; i < 3; i++) {
     vn_encode_double(in->c[i], hOut);
   }
-}
-
-static void vn_encode_position(vn_pos in, uint8_t **hOut)
-{
-  vn_encode_double((double) in, hOut);
-}
-
-static void vn_encode_pos3(vn_pos3_t *in, uint8_t **hOut)
-{
-  vn_encode_vec3d(in, hOut);
 }
 
 static void vn_encode_header_group_fields(uint16_t fields, uint8_t* pOut)
@@ -140,18 +99,18 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
   pBuf += VN_HEADER_Payload; //skip the header, get to the payload
   const uint8_t* payloadStart = pBuf;
 
-  vn_encode_nanoseconds(&in->gps_nanoseconds, &pBuf); //VN_TIME_TimeGps
+  vn_encode_u64(&in->gps_nanoseconds, &pBuf); //VN_TIME_TimeGps
   vn_encode_vec3f(&in->angular_rate, &pBuf); //VN_IMU_AngularRate
   vn_encode_vec3f(&in->euler_yaw_pitch_roll, &pBuf); //VN_ATT_YawPitchRoll
-  vn_encode_vec4f(&in->quaternion, &pBuf); //VN_ATT_Quaternion
+  vn_encode_vec4f(&in->att_quaternion, &pBuf); //VN_ATT_Quaternion
 
-  vn_encode_pos3(&in->pos_lla, &pBuf); //VN_INS_PosLla
-  vn_encode_pos3(&in->pos_ecef, &pBuf);//VN_INS_PosEcef
-  vn_encode_vel3(&in->vel_body, &pBuf);//VN_INS_VelBody
-  vn_encode_vel3(&in->vel_ned, &pBuf);//VN_INS_VelNed
+  vn_encode_vec3d(&in->pos_lla, &pBuf); //VN_INS_PosLla
+  vn_encode_vec3d(&in->pos_ecef, &pBuf);//VN_INS_PosEcef
+  vn_encode_vec3f(&in->vel_body, &pBuf);//VN_INS_VelBody
+  vn_encode_vec3f(&in->vel_ned, &pBuf);//VN_INS_VelNed
 
-  vn_encode_uncertainty(in->pos_uncertainty, &pBuf); //VN_INS_PosU
-  vn_encode_uncertainty(in->vel_uncertainty, &pBuf); //VN_INS_VelU
+  vn_encode_float(in->pos_uncertainty, &pBuf); //VN_INS_PosU
+  vn_encode_float(in->vel_uncertainty, &pBuf); //VN_INS_VelU
 
   const uint32_t payloadLen = (pBuf - payloadStart);
 
@@ -161,7 +120,7 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
   const uint32_t kCrcDataLen = vn300_standard_message_length() - 1 - VN_CRC_LEN;
   uint16_t current_crc = vn_u16_crc(pCrcDataStart,kCrcDataLen);
 
-  vn_encode_crc(current_crc, &pBuf);
+  vn_encode_u16(current_crc, &pBuf);
 
 
   const uint32_t expectedPayloadLen = vn300_standard_payload_length();
