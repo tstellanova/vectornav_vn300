@@ -7,6 +7,7 @@
 
 #include "vn300_msg_int.h"
 #include "vn300_encoder.h"
+#include "vn300_msg_types.h"
 
 
 //TODO we're assuming same endianness here, might be unsafe
@@ -82,12 +83,12 @@ vn300_encode_res vn300_encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_b
     return VN300_ENCODE_BAD_INPUT;
   }
 
-  uint8_t *pBuf =  malloc(vn300_standard_message_length());
-  if (NULL == pBuf) {
-    return VN300_ENCODE_FAIL;
+  //We assume that the buffer has already been allocated
+  if ((NULL == out->buf) || (vn300_standard_message_length() != out->len)) {
+    return VN300_ENCODE_BAD_INPUT;
   }
-  out->buf = pBuf;
-  out->len = vn300_standard_message_length();
+
+  uint8_t *pBuf =  out->buf;
 
   // encode header fields indicating which fields are active
   vn_encode_standard_header_group_fields(pBuf);

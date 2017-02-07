@@ -3,6 +3,9 @@
 //
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "vn300_msg_int.h"
 #include "vn300_msg_types.h"
 
@@ -88,3 +91,28 @@ uint32_t vn300_standard_message_length(void) {
   return precalc_len;
 }
 
+
+
+vn300_msg_buf_wrap_t* vn300_alloc_msg_wrap(void)
+{
+    vn300_msg_buf_wrap_t* pWrap = malloc(sizeof(vn300_msg_buf_wrap_t));
+    if (NULL == pWrap) {
+        return NULL;
+    }
+
+    pWrap->len  = vn300_standard_message_length();
+
+    pWrap->buf =  malloc(pWrap->len );
+    if (NULL == pWrap->buf) {
+        return NULL;
+    }
+
+    return pWrap;
+}
+
+void vn300_release_msg_wrap(vn300_msg_buf_wrap_t* wrap)
+{
+    free(wrap->buf);
+    wrap->len = 0;
+    free(wrap);
+}

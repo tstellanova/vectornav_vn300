@@ -39,25 +39,6 @@ static bool get_time_seed(theft_seed *seed)
 // === Setup for decoder fuzzing
 
 
-/**
- * @return An empty standard message wrapper with properly sized buffer
- */
-static vn300_msg_buf_wrap_t* alloc_empty_standard_msg()
-{
-  vn300_msg_buf_wrap_t* pWrap = malloc(sizeof(vn300_msg_buf_wrap_t));
-  if (NULL == pWrap) {
-    return NULL;
-  }
-
-  pWrap->buf = malloc(vn300_standard_message_length());
-  if (pWrap->buf == NULL) {
-    return NULL;
-  }
-
-  pWrap->len = vn300_standard_message_length();
-
-  return pWrap;
-}
 
 /**
  * @param t
@@ -69,7 +50,7 @@ static void* encoded_buf_alloc_cb(theft_t *t, theft_seed seed, void *env)
 {
   (void)env;
 
-  vn300_msg_buf_wrap_t* pWrap = alloc_empty_standard_msg();
+  vn300_msg_buf_wrap_t* pWrap = vn300_alloc_msg_wrap();
   if (pWrap == NULL) { return THEFT_ERROR; }
 
   //standard header declaration
@@ -100,9 +81,7 @@ static void encoded_buf_free_cb(void *instance, void *env)
 {
   (void)env;
   vn300_msg_buf_wrap_t* pWrap = (vn300_msg_buf_wrap_t*)instance;
-  free(pWrap->buf);
-  pWrap->buf = NULL;
-  free(pWrap);
+  vn300_release_msg_wrap(pWrap);
 }
 
 static theft_hash encoded_buf_hash_cb(void *instance, void *env)
@@ -308,17 +287,18 @@ static theft_trial_res
 prop_decoded_should_match_encoded(void* input)
 {
   vn300_standard_msg_t* pOrig = (vn300_standard_msg_t*)input;
-  vn300_msg_buf_wrap_t encodedBuf = {0};
+  vn300_msg_buf_wrap_t* pWrap = vn300_alloc_msg_wrap();
+
 
   //encode the original message struct as a buffer
-  vn300_encode_res encode_res = vn300_encode_standard_msg(pOrig, &encodedBuf);
+  vn300_encode_res encode_res = vn300_encode_standard_msg(pOrig,pWrap);
   if (VN300_ENCODE_OK != encode_res) {
     return THEFT_TRIAL_FAIL;
   }
 
   //decode the encoded buffer into a decoded message struct
   vn300_standard_msg_t decodedMsg;
-  if (VN300_DECODE_OK != vn300_decode_standard_msg(&encodedBuf, &decodedMsg)) {
+  if (VN300_DECODE_OK != vn300_decode_standard_msg(pWrap, &decodedMsg)) {
     return THEFT_TRIAL_FAIL;
   }
 
@@ -328,6 +308,7 @@ prop_decoded_should_match_encoded(void* input)
      return THEFT_TRIAL_FAIL;
   }
 
+  vn300_release_msg_wrap(pWrap);
   return THEFT_TRIAL_PASS;
 }
 

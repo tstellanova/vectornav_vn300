@@ -27,4 +27,6 @@ vn300_encode_res vn300_encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_b
 
 
 
+
+
 #endif //VN300_VN300_ENCODER_H
