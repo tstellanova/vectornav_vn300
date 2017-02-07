@@ -7,15 +7,15 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <inttypes.h>
-#include <vn300_msg_types.h>
-#include <vn300_encoder.h>
-#include <vn300_msg_int.h>
 
 
+/// Test framework:  greatest + theft
 #include "theft/greatest.h"
 #include "theft/theft.h"
-#include "vn300_decoder.h"
 
+#include "vn300_decoder.h"
+#include "vn300_encoder.h"
+#include "vn300_msg_int.h"
 
 typedef struct theft  theft_t;
 typedef struct {
@@ -39,9 +39,11 @@ static bool get_time_seed(theft_seed *seed)
 // === Setup for decoder fuzzing
 
 
+/**
+ * @return An empty standard message wrapper with properly sized buffer
+ */
 static vn300_msg_buf_wrap_t* alloc_empty_standard_msg()
 {
-
   vn300_msg_buf_wrap_t* pWrap = malloc(sizeof(vn300_msg_buf_wrap_t));
   if (NULL == pWrap) {
     return NULL;
@@ -55,9 +57,14 @@ static vn300_msg_buf_wrap_t* alloc_empty_standard_msg()
   pWrap->len = vn300_standard_message_length();
 
   return pWrap;
-
 }
 
+/**
+ * @param t
+ * @param seed
+ * @param env
+ * @return   an encoded message buffer with proper size, CRC
+ */
 static void* encoded_buf_alloc_cb(theft_t *t, theft_seed seed, void *env)
 {
   (void)env;
@@ -103,19 +110,19 @@ static theft_hash encoded_buf_hash_cb(void *instance, void *env)
   (void)env;
   vn300_msg_buf_wrap_t* pWrap = (vn300_msg_buf_wrap_t*)instance;
 
+    //hash contents of the inner buffer
   if (NULL != pWrap->buf) {
     return theft_hash_onepass(pWrap->buf, vn300_standard_message_length());
   }
 
   return 0;
-
 }
 
 
 static void print_standard_msg_buf(FILE *f, vn300_msg_buf_wrap_t* pWrap)
 {
   for (uint32_t i = 0; i < pWrap->len; i++) {
-    fprintf(f, " %02x ", pWrap->buf[i]);
+    fprintf(f, " %02x", pWrap->buf[i]);
   }
 }
 
@@ -128,6 +135,9 @@ static void encoded_buf_print_cb(FILE *f, void *instance, void *env)
 }
 
 
+/**
+ * Generic progress callback for theft trials
+ */
 static theft_progress_callback_res
 generic_progress_cb(struct theft_trial_info *info, void *env)
 {
@@ -152,6 +162,11 @@ generic_progress_cb(struct theft_trial_info *info, void *env)
   return THEFT_PROGRESS_CONTINUE;
 }
 
+
+/**
+ * All of the callbacks needed for testing the randomized message buffer inputs
+ * with theft.
+ */
 static struct theft_type_info encoded_buf_info = {
     .alloc = encoded_buf_alloc_cb,
     .free = encoded_buf_free_cb,
@@ -166,7 +181,7 @@ prop_decoder_should_not_get_stuck(void* input)
   vn300_msg_buf_wrap_t* pWrap = (vn300_msg_buf_wrap_t*)input;
   vn300_standard_msg_t decoded = {0};
 
-  vn300_decode_res decode_res = decode_standard_msg(pWrap, &decoded);
+  vn300_decode_res decode_res = vn300_decode_standard_msg(pWrap, &decoded);
   //regardless of validity of input, this method should always return
   if (VN300_DECODE_OK != decode_res) {
     return THEFT_TRIAL_FAIL;
@@ -296,14 +311,14 @@ prop_decoded_should_match_encoded(void* input)
   vn300_msg_buf_wrap_t encodedBuf = {0};
 
   //encode the original message struct as a buffer
-  vn300_encode_res encode_res = encode_standard_msg(pOrig, &encodedBuf);
+  vn300_encode_res encode_res = vn300_encode_standard_msg(pOrig, &encodedBuf);
   if (VN300_ENCODE_OK != encode_res) {
     return THEFT_TRIAL_FAIL;
   }
 
   //decode the encoded buffer into a decoded message struct
   vn300_standard_msg_t decodedMsg;
-  if (VN300_DECODE_OK != decode_standard_msg(&encodedBuf, &decodedMsg)) {
+  if (VN300_DECODE_OK != vn300_decode_standard_msg(&encodedBuf, &decodedMsg)) {
     return THEFT_TRIAL_FAIL;
   }
 
@@ -375,7 +390,7 @@ TEST decoder_should_reject_null_input_pointer(void)
   vn300_msg_buf_wrap_t* in = NULL;
   vn300_standard_msg_t out = {0};
 
-  ASSERT_EQ(VN300_DECODE_EMPTY_INPUT,  decode_standard_msg(in, &out ) );
+  ASSERT_EQ(VN300_DECODE_EMPTY_INPUT, vn300_decode_standard_msg(in, &out) );
   PASS();
 }
 
@@ -384,7 +399,7 @@ TEST decoder_should_reject_empty_msg(void)
   vn300_msg_buf_wrap_t in = {0};
   vn300_standard_msg_t out = {0};
 
-  ASSERT_EQ(VN300_DECODE_EMPTY_INPUT,  decode_standard_msg(&in, &out ) );
+  ASSERT_EQ(VN300_DECODE_EMPTY_INPUT, vn300_decode_standard_msg(&in, &out) );
   PASS();
 }
 
@@ -396,7 +411,7 @@ TEST decoder_should_reject_missing_sync_header(void)
   };
   vn300_standard_msg_t out = {0};
 
-  ASSERT_EQ(VN300_DECODE_BAD_INPUT,  decode_standard_msg(&in, &out ) );
+  ASSERT_EQ(VN300_DECODE_BAD_INPUT, vn300_decode_standard_msg(&in, &out) );
   PASS();
 }
 

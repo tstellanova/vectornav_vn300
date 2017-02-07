@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include "vn300_msg_int.h"
+#include "vn300_msg_types.h"
 
 uint8_t vn_u8_checksum(const uint8_t *data, uint32_t length)
 {
@@ -51,7 +52,7 @@ const uint8_t kVNGroupFieldLengths[VN_GROUP_COUNT][VN_GROUP_FIELD_COUNT] =
 
 
 //this defines the format of the standard payload
-uint32_t vn300_standard_payload_length() {
+uint32_t vn300_standard_payload_length(void) {
   static uint32_t precalc_len = 0;
   if (0 == precalc_len) {
     precalc_len =
@@ -77,7 +78,7 @@ uint32_t vn300_standard_payload_length() {
 }
 
 
-uint32_t vn300_standard_message_length() {
+uint32_t vn300_standard_message_length(void) {
   static uint32_t precalc_len = 0;
   if (0 == precalc_len) {
     uint32_t payload_len = vn300_standard_payload_length();

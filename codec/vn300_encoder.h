@@ -6,7 +6,7 @@
 #define VN300_VN300_ENCODER_H
 
 
-#include "vn300_msg_types.h"
+#include "vn300_common.h"
 
 
 typedef enum {
@@ -16,7 +16,15 @@ typedef enum {
 } vn300_encode_res;
 
 
-vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wrap_t* out);
+/**
+ *
+ * @param in A standard message struct
+ * @param out An encoded message buffer of the proper size.
+ * @return One of the encoding error codes
+ */
+vn300_encode_res vn300_encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wrap_t* out);
+
+
 
 
 #endif //VN300_VN300_ENCODER_H

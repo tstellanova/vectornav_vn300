@@ -3,9 +3,8 @@
 //
 
 #include <stdlib.h>
-#include <memory.h>
+#include <string.h>
 
-#include "vn300_msg_types.h"
 #include "vn300_msg_int.h"
 #include "vn300_encoder.h"
 
@@ -77,7 +76,7 @@ void vn_encode_standard_header_group_fields(uint8_t* pBuf)
   vn_encode_header_group_fields(VN300_INS_SELECTED_FIELDS,  &pBuf[VN_HEADER_GroupFields_INS]);
 }
 
-vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wrap_t* out)
+vn300_encode_res vn300_encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wrap_t* out)
 {
   if (NULL == in) {
     return VN300_ENCODE_BAD_INPUT;
@@ -94,8 +93,6 @@ vn300_encode_res encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wra
   vn_encode_standard_header_group_fields(pBuf);
 
   // see vn300_standard_payload_length for the fields included in the standard payload
-  uint8_t groupIdx = 0;
-  uint32_t field_len = 0;
   pBuf += VN_HEADER_Payload; //skip the header, get to the payload
   const uint8_t* payloadStart = pBuf;
 

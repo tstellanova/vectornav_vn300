@@ -7,7 +7,7 @@
 #include "vn300_msg_int.h"
 
 #include <stdlib.h>
-#include <memory.h>
+#include <string.h>
 
 
 
@@ -62,7 +62,7 @@ static void vn_decode_vec3d(vn_pos3_t *dest, uint8_t **hInOut)
   }
 }
 
-vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_standard_msg_t* out)
+vn300_decode_res vn300_decode_standard_msg(const vn300_msg_buf_wrap_t *in, vn300_standard_msg_t *out)
 {
   if ((NULL == in) || (in->len < vn300_standard_message_length())) {
     return VN300_DECODE_EMPTY_INPUT;
@@ -91,8 +91,6 @@ vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* in, vn300_stand
   uint8_t* pBuf = in->buf;
 
   // see vn300_standard_payload_length for the fields included in the standard payload
-  uint8_t groupIdx = 0;
-  uint32_t field_len = 0;
   pBuf += VN_HEADER_Payload; //skip the header, get to the payload
   const uint8_t* payloadStart = pBuf;
 

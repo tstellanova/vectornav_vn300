@@ -8,13 +8,13 @@ include_directories(test/theft)
 include_directories(codec)
 
 set(SOURCE_FILES
+        codec/vn300_common.c
         codec/vn300_decoder.c
         codec/vn300_encoder.c
-        codec/vn300_msg_int.c)
+        )
 
 set(TEST_SOURCE_FILES
         test/test_decoder.c
-        codec/vn300_encoder.c
 
         test/theft/theft.c
         test/theft/theft_bloom.c

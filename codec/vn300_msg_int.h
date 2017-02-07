@@ -5,35 +5,16 @@
 #ifndef VN300_VN300_MSG_INT_H
 #define VN300_VN300_MSG_INT_H
 
-/**
- *
- * @return  The length of the standard preconfigured message sent by VN300
- */
-uint32_t vn300_standard_message_length();
+
+
 
 /**
- *
- * @return  The length of the payload for our preconfgured VN300 message
- */
-uint32_t vn300_standard_payload_length();
-
-/**
- * Calculate VectorNav 16-bit CRC on data
- * VN‐300 uses the CRC16‐CCITT
- * @param data
- * @param length
- * @return
- */
-uint16_t vn_u16_crc(const uint8_t *data, uint32_t length);
-
-// 8 bit xor checksum
-uint8_t vn_u8_checksum(const uint8_t *data, uint32_t length);
-
-/**
- * Insert the standard msg header group fields in the given buffer
+ * Insert the standard msg header group fields in the given buffer.
+ * This indicates which Groups have been selected,
+ * and which Fields within those groups.
  * @param pBuf
  */
-void vn_encode_standard_header_group_fields(uint8_t* pBuf);
+void vn_encode_standard_header_group_fields(uint8_t *pBuf);
 
 
 
@@ -70,7 +51,7 @@ enum {
     VN_HEADER_Sync = 0,
     VN_HEADER_Groups = 1,
     //--- the following must be updated if we activate any new groups
-    VN_HEADER_GroupFields_TIME = 2,
+            VN_HEADER_GroupFields_TIME = 2,
     VN_HEADER_GroupFields_IMU = 4,
     VN_HEADER_GroupFields_ATT = 6,
     VN_HEADER_GroupFields_INS = 8,

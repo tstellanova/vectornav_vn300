@@ -6,7 +6,8 @@
 #define VN300_DECODER_H
 
 
-#include "vn300_msg_types.h"
+#include "vn300_common.h"
+
 
 
 typedef enum {
@@ -17,7 +18,12 @@ typedef enum {
     VN300_DECODE_FAIL
 } vn300_decode_res;
 
-
-vn300_decode_res decode_standard_msg(const vn300_msg_buf_wrap_t* buf, vn300_standard_msg_t* out);
+/**
+ *
+ * @param buf A complete wrapped buffer with proper length (@see vn300_standard_message_length)
+ * @param out
+ * @return One of the decoding result codes
+ */
+vn300_decode_res vn300_decode_standard_msg(const vn300_msg_buf_wrap_t *buf, vn300_standard_msg_t *out);
 
 #endif //VN300_DECODER_H
