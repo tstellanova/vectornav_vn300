@@ -19,7 +19,7 @@ typedef enum {
 /**
  *
  * @param in A standard message struct
- * @param out An encoded message buffer of the proper size.
+ * @param out An encoded message buffer of the proper size. Allocate with @see vn300_alloc_msg_wrap
  * @return One of the encoding error codes
  */
 vn300_encode_res vn300_encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_buf_wrap_t* out);

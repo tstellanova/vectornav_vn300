@@ -4,10 +4,10 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
+#include "vn300_common.h"
 #include "vn300_msg_int.h"
-#include "vn300_msg_types.h"
+
 
 uint8_t vn_u8_checksum(const uint8_t *data, uint32_t length)
 {

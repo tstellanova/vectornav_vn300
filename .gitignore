@@ -1,4 +1,8 @@
 .idea/*.xml
+test/.idea/*.xml
 .DS_Store
 CMakeLists.txt.user
+cmake-build-debug/*
+test/cmake-build-debug
+.name
 

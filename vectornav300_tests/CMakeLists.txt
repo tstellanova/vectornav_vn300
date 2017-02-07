@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2015 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2016 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -30,19 +30,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
-
-
 px4_add_module(
-	MODULE drivers__vn300
-	MAIN vn300
+	MODULE drivers__vectornav300__vectornav300_tests
+	MAIN vectornav300_tests
 	COMPILE_FLAGS
 	SRCS
-        vn300_common.c
-		vn300_decoder.c
-		vn300_encoder.c
-        vectornav300.cpp
-
-    DEPENDS
+		VectorNav300Test.cpp
+	DEPENDS
 		platforms__common
 	)
-# vim: set noet ft=cmake fenc=utf-8 ff=unix :
+# vim: set noet ft=cmake fenc=utf-8 ff=unix : 

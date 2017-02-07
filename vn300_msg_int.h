@@ -7,6 +7,36 @@
 
 
 
+/**
+ *
+ * @return  The length of the payload for our preconfgured VN300 message
+ */
+uint32_t vn300_standard_payload_length(void);
+
+/**
+ *
+ * @return  The total length of the standard preconfigured message sent by VN300
+ */
+uint32_t vn300_standard_message_length(void);
+
+
+/**
+ * Calculate VectorNav 16-bit CRC on data
+ * VN‐300 uses the CRC16‐CCITT
+ * @param data
+ * @param length
+ * @return  CRC16‐CCITT
+ */
+uint16_t vn_u16_crc(const uint8_t *data, uint32_t length);
+
+/**
+ * Calculate VectorNav 8-bit checksum on given data
+ * @param data
+ * @param length
+ * @return 8 bit xor checksum
+ */
+uint8_t vn_u8_checksum(const uint8_t *data, uint32_t length);
+
 
 /**
  * Insert the standard msg header group fields in the given buffer.
