@@ -8,6 +8,9 @@
 
 #include "vn300_common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum {
     VN300_ENCODE_OK,
@@ -26,7 +29,9 @@ vn300_encode_res vn300_encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_b
 
 
 
-
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif //VN300_VN300_ENCODER_H

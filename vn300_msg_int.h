@@ -6,6 +6,9 @@
 #define VN300_VN300_MSG_INT_H
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  *
@@ -199,5 +202,8 @@ enum {
     (1 << VN_INS_VelU) \
 )
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif //VN300_VN300_MSG_INT_H

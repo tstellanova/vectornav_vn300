@@ -9,6 +9,7 @@
 #include "vn300_msg_int.h"
 
 
+
 uint8_t vn_u8_checksum(const uint8_t *data, uint32_t length)
 {
   uint8_t cksum = 0;

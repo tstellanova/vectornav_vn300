@@ -8,7 +8,9 @@
 
 #include "vn300_common.h"
 
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum {
     VN300_DECODE_OK,
@@ -25,5 +27,10 @@ typedef enum {
  * @return One of the decoding result codes
  */
 vn300_decode_res vn300_decode_standard_msg(const vn300_msg_buf_wrap_t *buf, vn300_standard_msg_t *out);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //VN300_DECODER_H

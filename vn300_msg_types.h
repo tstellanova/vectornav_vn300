@@ -11,6 +11,9 @@
 #include <stdbool.h>
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef union
 {
@@ -128,7 +131,9 @@ typedef struct {
 } __attribute__((packed)) vn300_standard_msg_t ; //we use packed so that we can use memcmp to compares
 
 
-
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif //VN300_VN300_MSG_TYPES_H_H

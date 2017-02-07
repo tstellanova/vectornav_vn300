@@ -43,7 +43,7 @@
 #include <board_config.h>
 
 #include "vectornav300.hpp"
-#include "codec/vn300_encoder.h"
+#include "vn300_encoder.h"
 
 
 

@@ -9,7 +9,7 @@
 #include <uORB/uORB.h>
 #include <uORB/topics/vehicle_gps_position.h>
 
-#include "codec/vn300_msg_types.h"
+#include "vn300_msg_types.h"
 
 
 
