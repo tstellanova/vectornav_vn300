@@ -2,8 +2,8 @@
 // Created by Todd Stellanova on 2/7/17.
 //
 
-#ifndef VN300_VN300_COMMON_H
-#define VN300_VN300_COMMON_H
+#ifndef VN300_COMMON_H
+#define VN300_COMMON_H
 
 
 #include "vn300_msg_types.h"
@@ -21,4 +21,4 @@ void vn300_release_msg_wrap(vn300_msg_buf_wrap_t *wrap);
 }
 #endif
 
-#endif //VN300_VN300_COMMON_H
+#endif //VN300_COMMON_H

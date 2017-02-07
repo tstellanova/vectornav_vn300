@@ -2,8 +2,10 @@
 // Created by Aero on 2/2/17.
 //
 
-#ifndef VN300_VN300_MSG_INT_H
-#define VN300_VN300_MSG_INT_H
+
+
+#ifndef VN300_MSG_INT_H
+#define VN300_MSG_INT_H
 
 
 #ifdef __cplusplus
@@ -68,7 +70,7 @@ void vn_encode_standard_header_group_fields(uint8_t *pBuf);
 #define VN_GROUP_COUNT  6     /// Max number of Groups supported by VectorNav
 #define VN_GROUP_FIELD_COUNT 16  /// Max number of fields supported within a Group
 
-enum {
+typedef enum {
     VN_GROUP_INDEX_STD = 0,
     VN_GROUP_INDEX_TIME,
     VN_GROUP_INDEX_IMU,
@@ -80,7 +82,7 @@ enum {
 
 //Header contains selectors for four Groups
 //Header is variable length depending on the number of groups active in the message
-enum {
+typedef enum {
     VN_HEADER_Sync = 0,
     VN_HEADER_Groups = 1,
     //--- the following must be updated if we activate any new groups
@@ -104,7 +106,7 @@ enum {
 
 
 // Binary Group 2 -- Time outputs
-enum {
+typedef enum {
     VN_TIME_TimeStartup,
     VN_TIME_TimeGps,
     VN_TIME_GpsTow,
@@ -121,7 +123,7 @@ enum {
 )
 
 // Binary Group 3  -- IMU outputs
-enum {
+typedef enum {
     VN_IMU_Status,
     VN_IMU_UncompMag,
     VN_IMU_UncompAccel,
@@ -142,7 +144,7 @@ enum {
 )
 
 // Binary Group 4 -- GPS outputs
-enum {
+typedef enum {
     VN_GPS_UTC,
     VN_GPS_Tow,
     VN_GPS_Week,
@@ -160,7 +162,7 @@ enum {
 
 
 // Binary Group 5 – Attitude Outputs
-enum {
+typedef enum {
     VN_ATT_Reserved0,
     VN_ATT_YawPitchRoll,
     VN_ATT_Quaternion,
@@ -179,7 +181,7 @@ enum {
 )
 
 // Binary Group 6 – INS Outputs
-enum {
+typedef enum {
     VN_INS_Status, // 2
     VN_INS_PosLla, // 24
     VN_INS_PosEcef, // 24
@@ -206,4 +208,6 @@ enum {
 }
 #endif
 
-#endif //VN300_VN300_MSG_INT_H
+#endif //VN300_MSG_INT_H
+
+

@@ -2,18 +2,19 @@
 // Created by Aero on 2/2/17.
 //
 
-#ifndef VN300_VN300_MSG_TYPES_H_H
-#define VN300_VN300_MSG_TYPES_H_H
+#ifndef VN300_MSG_TYPES_H
+#define VN300_MSG_TYPES_H
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 #include <stdint.h>
 #include <ctype.h>
 #include <stdbool.h>
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef union
 {
@@ -136,4 +137,4 @@ typedef struct {
 #endif
 
 
-#endif //VN300_VN300_MSG_TYPES_H_H
+#endif //VN300_MSG_TYPES_H

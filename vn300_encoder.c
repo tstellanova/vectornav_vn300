@@ -5,9 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "vn300_msg_int.h"
 #include "vn300_encoder.h"
-#include "vn300_msg_types.h"
+#include "vn300_msg_int.h"
 
 
 //TODO we're assuming same endianness here, might be unsafe

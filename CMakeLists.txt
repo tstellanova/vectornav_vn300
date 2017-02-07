@@ -38,7 +38,10 @@ px4_add_module(
     STACK_MAIN 1024
 	COMPILE_FLAGS
         -Os
-	SRCS vn300_common.c vn300_decoder.c vn300_encoder.c
+	SRCS
+        vn300_common.c
+        vn300_decoder.c
+        vn300_encoder.c
         vectornav300.cpp
     DEPENDS
 		platforms__common

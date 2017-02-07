@@ -2,8 +2,8 @@
 // Created by Aero on 2/2/17.
 //
 
-#ifndef VN300_VN300_ENCODER_H
-#define VN300_VN300_ENCODER_H
+#ifndef VN300_ENCODER_H
+#define VN300_ENCODER_H
 
 
 #include "vn300_common.h"
@@ -34,4 +34,4 @@ vn300_encode_res vn300_encode_standard_msg(vn300_standard_msg_t* in, vn300_msg_b
 #endif
 
 
-#endif //VN300_VN300_ENCODER_H
+#endif //VN300_ENCODER_H
