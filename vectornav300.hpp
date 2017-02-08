@@ -105,10 +105,14 @@ private:
     vn300_standard_msg_t    _recv_msg;
     vn300_msg_buf_wrap_t*   _recv_wrap;
 
+    int _orb_pub_instance;///< uORB publisher for all topics we publish
 
-    struct vehicle_gps_position_s	_report_gps_pos;///< uORB topic for gps position
-    orb_advert_t			_report_gps_pos_topic;	///< uORB pub for gps position
-    int _gps_pos_orb_instance;
+    struct vehicle_gps_position_s	_report_gps_pos;///< uORB message for vehicle_gps_position
+    orb_advert_t			_report_gps_pos_topic;	///< uORB advert for vehicle_gps_position
+
+    struct ins_common_s  _report_ins; ///< uORB message for ins_common
+    orb_advert_t			_report_ins_topic;	///< uORB advert for ins_common
+
 
     uint8_t     _rawReadBuf[256];
     uint32_t    _rawReadAvailable;

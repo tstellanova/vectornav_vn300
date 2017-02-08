@@ -39,6 +39,7 @@
 #include <uORB/topics/subsystem_info.h>
 #include <uORB/topics/distance_sensor.h>
 #include <uORB/topics/vehicle_gps_position.h>
+#include <uORB/topics/ins_common.h>
 
 #include <systemlib/scheduling_priorities.h>
 
@@ -77,9 +78,13 @@ VectorNav300::VectorNav300(const char *port) :
 		_echo_send_wrap(nullptr),
 		_recv_msg({0}),
 		_recv_wrap(nullptr),
-		_report_gps_pos({0}),
+    _orb_pub_instance(-1),
+
+    _report_gps_pos({0}),
 		_report_gps_pos_topic(nullptr),
-		_gps_pos_orb_instance(-1),
+
+		_report_ins({0}),
+		_report_ins_topic(nullptr),
 
 
 		_rawReadAvailable(0),
@@ -245,6 +250,15 @@ VectorNav300::init()
 	_std_msg_len = _echo_send_wrap->len;
 
 	//setup some crappy test data
+	_echo_send_msg.gps_nanoseconds = 1234567890;
+
+	_echo_send_msg.angular_rate.c[0] = 1.0f;
+	_echo_send_msg.angular_rate.c[1] = 2.0f;
+	_echo_send_msg.angular_rate.c[2] = 3.0f;
+
+	_echo_send_msg.euler_yaw_pitch_roll.c[0] = 2.0f;
+	_echo_send_msg.euler_yaw_pitch_roll.c[1] = 4.0f;
+	_echo_send_msg.euler_yaw_pitch_roll.c[2] = 8.0f;
 
 	_echo_send_msg.pos_lla.c[0] = 37.827514;
 	_echo_send_msg.pos_lla.c[1] = -122.372918;
@@ -257,6 +271,11 @@ VectorNav300::init()
 	_echo_send_msg.vel_ned.c[0] = 111.0;
 	_echo_send_msg.vel_ned.c[1] = 222.0;
 	_echo_send_msg.vel_ned.c[2] = 333.0;
+
+	_echo_send_msg.vel_body.c[0] = 222.0;
+	_echo_send_msg.vel_body.c[1] = 444.0;
+	_echo_send_msg.vel_body.c[2] = 888.0;
+
 
 	_echo_send_msg.vel_uncertainty = 0.25f;
 	_echo_send_msg.pos_uncertainty = 0.88f;
@@ -295,10 +314,51 @@ VectorNav300::stop()
 void
 VectorNav300::publish()
 {
+
+	//time_nsec
+  _report_ins.time_nsec = _recv_msg.gps_nanoseconds;
+
+
+  //angular_rate
+	memcpy((void*)&_report_ins.angular_rate, (void*)&_recv_msg.angular_rate, sizeof(vn_vec3f));
+
+  //euler_yaw_pitch_roll
+	memcpy((void*)&_report_ins.euler_yaw_pitch_roll, (void*)&_recv_msg.euler_yaw_pitch_roll, sizeof(vn_vec3f));
+
+  //att_q
+	memcpy((void*)&_report_ins.att_q, (void*)&_recv_msg.att_quaternion, sizeof(vn_vec4f));
+
+  // LLA position
+  _report_ins.lat = (int32_t)( _recv_msg.pos_lla.c[0] * 1E7); //Latitude in 1E-7 degrees
+  _report_ins.lon = (int32_t)( _recv_msg.pos_lla.c[1] * 1E7); //Longitude in 1E-7 degrees
+  _report_ins.alt_ellipsoid = (_recv_msg.pos_lla.c[2] * 1E3); //altitude in meters above WGS84 ellipsoid
+
+  //pos_ecef
+	memcpy((void*)&_report_ins.pos_ecef, (void*)&_recv_msg.pos_ecef, sizeof(vn_pos3_t));
+
+  //vel_body
+	memcpy((void*)&_report_ins.vel_body, (void*)&_recv_msg.vel_body, sizeof(vn_vel3_t));
+
+  //vel_ned
+	memcpy((void*)&_report_ins.vel_ned, (void*)&_recv_msg.vel_ned, sizeof(vn_vel3_t));
+
+  _report_ins.pos_uncertainty = _recv_msg.pos_uncertainty;
+  _report_ins.vel_uncertainty = _recv_msg.vel_uncertainty;
+
+	_report_ins.timestamp = hrt_absolute_time();
+  orb_publish_auto(ORB_ID(ins_common), &_report_ins_topic, &_report_ins, &_orb_pub_instance, ORB_PRIO_HIGH);
+
+
+  /*
+	_report_gps_pos.time_utc_usec = (uint64_t )_recv_msg.gps_nanoseconds + (dumb_counter++);
+
+	// LLA position
 	_report_gps_pos.lat = (int32_t)( _recv_msg.pos_lla.c[0] * 1E7); //Latitude in 1E-7 degrees
 	_report_gps_pos.lon = (int32_t)( _recv_msg.pos_lla.c[1] * 1E7); //Longitude in 1E-7 degrees
 	_report_gps_pos.alt = (int32_t)(_recv_msg.pos_lla.c[2] * 1E3); //Altitude in 1E-3 meters above MSL, (millimetres)
+	_report_gps_pos.alt_ellipsoid = _report_gps_pos.alt;
 
+	// NED velocity
 	_report_gps_pos.vel_n_m_s = _recv_msg.vel_ned.c[0];
 	_report_gps_pos.vel_e_m_s = _recv_msg.vel_ned.c[1];
 	_report_gps_pos.vel_d_m_s = _recv_msg.vel_ned.c[2];
@@ -306,20 +366,25 @@ VectorNav300::publish()
 
 	_report_gps_pos.fix_type = 3; //3D Fix
 
-	//			int32 alt_ellipsoid 		# Altitude in 1E-3 meters bove Ellipsoid, (millimetres)
+	_report_gps_pos.eph = _recv_msg.pos_uncertainty;
+	_report_gps_pos.epv = _recv_msg.pos_uncertainty;
 
-//	_report_gps_pos.eph = _recv_msg.pos_uncertainty;
-//	_report_gps_pos.epv = _recv_msg.pos_uncertainty;
-//
-//
+	_report_gps_pos.s_variance_m_s = _recv_msg.vel_uncertainty; //GPS speed accuracy estimate, (metres/sec)
 
+	float vx,vy,vz,vtotal;
+	vx = _recv_msg.vel_body.c[0];
+	vy = _recv_msg.vel_body.c[1];
+	vz = _recv_msg.vel_body.c[2];
+	vtotal = sqrt(vx*vx + vy*vy + vz*vz);
+	_report_gps_pos.vel_m_s = vtotal;
 
-//	orb_publish_auto(ORB_ID(vehicle_gps_position), &_report_gps_pos_pub, &_report_gps_pos, &_gps_orb_instance,
-//									 ORB_PRIO_DEFAULT);
-	orb_publish_auto(ORB_ID(vehicle_gps_position), &_report_gps_pos_topic, &_report_gps_pos, &_gps_pos_orb_instance, ORB_PRIO_HIGH);
+	orb_publish_auto(ORB_ID(vehicle_gps_position), &_report_gps_pos_topic, &_report_gps_pos, &_orb_pub_instance, ORB_PRIO_HIGH);
+  */
 
 
 }
+
+
 void
 VectorNav300::print_info()
 {
