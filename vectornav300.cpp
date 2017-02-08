@@ -201,6 +201,10 @@ VectorNav300::setup()
 void
 VectorNav300::teardown()
 {
+
+	vn300_release_msg_wrap(_recv_wrap);
+	_recv_wrap = nullptr;
+
 	if (_serial_fd > 0) {
 		::close(_serial_fd);
 		_serial_fd = -1;
@@ -399,29 +403,29 @@ void VectorNav300::clearReceiveBuffer(void)
 	_stream_synced = false;
 }
 
-int VectorNav300::resync(void)
+void VectorNav300::resync(void)
 {
 	perf_count(_resync_perf);
 	//search for the sync byte in input stream.
-	//we assume that there are at least _std_msg_len bytes available
-	//in our internal buffer
 
-	for (uint32_t i = 0; i < _rawReadAvailable; i++) {
-		uint8_t b = _rawReadBuf[i];
-		if (VECTORNAV_HEADER_SYNC_BYTE == b) {
-			//we found the start of a VN message
+	if (_rawReadAvailable > 0) {
+		uint8_t* found = (uint8_t*) memchr(_rawReadBuf, (int)VECTORNAV_HEADER_SYNC_BYTE, _rawReadAvailable);
+		if (nullptr != found) {
+			//we found the sync byte that starts a VN message:
 			//copy these bytes to the front of the buffer
-			memcpy(_rawReadBuf, _rawReadBuf, (_rawReadAvailable - i));
-			_rawReadAvailable -= i;
+			uint32_t offset = (found - &_rawReadBuf[0]);
+			uint32_t remaining = _rawReadAvailable - offset;
+			_rawReadAvailable = remaining;
+			if (remaining > 0) {
+				memmove(_rawReadBuf, found, remaining);
+			}
 			_stream_synced = true;
-			break;
 		}
 	}
+
 	if (!_stream_synced) {
 		clearReceiveBuffer();
 	}
-
-	return 0;
 }
 
 void VectorNav300::handleSerialData(void)
@@ -436,11 +440,15 @@ void VectorNav300::handleSerialData(void)
 			resync();
 		}
 
-		//recheck whether we have enough data after syncing
 		if (_stream_synced && (_rawReadAvailable >= _std_msg_len)) {
 			//put encoded data in wrapper
 			memcpy(_recv_wrap->buf, _rawReadBuf, _std_msg_len);
-			_rawReadAvailable -= _std_msg_len;
+			uint32_t remaining = _rawReadAvailable - _std_msg_len;
+			_rawReadAvailable = remaining;
+			if (remaining > 0) {
+				//move remainder to front of buffer
+				memmove(_rawReadBuf, _rawReadBuf, remaining);
+			}
 
 			perf_begin(_decode_perf);
 			vn300_decode_res res = vn300_decode_standard_msg(_recv_wrap, &_recv_msg);

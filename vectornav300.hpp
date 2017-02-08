@@ -79,9 +79,8 @@ protected:
 
     /**
      * Find the sync byte in incoming stream
-     * @return 0 if synced ok, < 0 if error
      */
-    int resync(void);
+    void resync(void);
 
     /**
     * Used for loopback testing
@@ -102,7 +101,7 @@ private:
     bool      _echo_test; ///< Should we send a message to the receiver for loopback?
 
     int				_serial_fd;	 ///< serial interface to INS
-    bool      _stream_synced; ///< We've synchronized the input stream
+    bool      _stream_synced; ///< Has the input stream been synchronized so that buf[0] is SYNC?
 
     uint32_t                _std_msg_len;
 
