@@ -12,6 +12,10 @@
 extern "C" {
 #endif
 
+/// Byte used to indicate the start of a VectorNav binary message
+#define VECTORNAV_HEADER_SYNC_BYTE  0xFA
+
+
 vn300_msg_buf_wrap_t *vn300_alloc_msg_wrap(void);
 
 void vn300_release_msg_wrap(vn300_msg_buf_wrap_t *wrap);

@@ -63,7 +63,6 @@ void vn_encode_standard_header_group_fields(uint8_t *pBuf);
  * CRC (u16)
  */
 
-#define VECTORNAV_HEADER_SYNC_BYTE  0xFA
 
 #define VN_CRC_LEN  2
 

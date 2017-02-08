@@ -32,6 +32,10 @@
 
 
 
+/**
+ * Collects INS data from the VectorNav VN300
+ * and publishes it to uORB.
+ */
 class VectorNav300
 {
 public:
@@ -40,97 +44,42 @@ public:
 
     virtual int 			init();
 
-    virtual ssize_t		read(struct file *filp, char *buffer, size_t buflen);
-
     //print some basic information about the driver.
-    void				print_info();
+    void				print_info();  ///< print status info
 
 protected:
 
     /**
-     * This is an abstraction for the poll on serial used.
-     *
-     * @param buf: pointer to read buffer
-     * @param buf_length: size of read buffer
-     * @param timeout: timeout in ms
-     * @return: 0 for nothing read, or poll timed out
-     *	    < 0 for error
-     *	    > 0 number of bytes read
-     */
-//    virtual int pollOrRead(uint8_t *buf, size_t buf_length, int timeout);
-    void    sendEchoMsg(void);
-
-
-
-    /**
     * Trampoline to the worker task
     */
-    static void			task_main_trampoline(void *arg);
+    static void	task_main_trampoline(void *arg);
 
     /**
      * Worker task: main thread that parses incoming data, always running
      */
-    void				taskMain(void);
+    void taskMain(void);
 
     void setupThings(void);
-    void resetThings(void);
     void teardownThings(void);
     int openUART(void);
     void handleSerialData(void);
 
-
-private:
-    char 				_port[20];
-    volatile int		_task;  ///< worker task
-    bool				_task_should_exit;  ///< flag to make the main worker task exit
-
-
-    bool				_sensor_ok;
-    int				_measure_ticks;
-
-    int				_serial_fd;	 ///< serial interface to INS
-
-    hrt_abstime			_last_read;
-
-    uint32_t                _std_msg_len;
-
-    vn300_standard_msg_t    _echo_send_msg;
-    vn300_msg_buf_wrap_t*    _echo_send_wrap;
-
-    vn300_standard_msg_t    _recv_msg;
-    vn300_msg_buf_wrap_t*    _recv_wrap;
-
-
-    ringbuffer::RingBuffer *_gps_pos_reports;
-    struct vehicle_gps_position_s	_report_gps_pos;///< uORB topic for gps position
-    orb_advert_t			_report_gps_pos_topic;	///< uORB pub for gps position
-
-    uint8_t     _rawReadBuf[256];
-    unsigned			_consecutive_fail_count;
-
-    perf_counter_t			_sample_perf;
-    perf_counter_t      _cycle_perf;
-
-    perf_counter_t			_buffer_overflows;
-    perf_counter_t			_write_errors;
-  perf_counter_t			_poll_errors;
-  perf_counter_t			_read_errors;
-
-
     /**
-    * Initialise the automatic measurement state machine and start it.
-    */
-    void			start();
-
-    /**
-    * Stop the automatic measurement state machine.
-    */
-    void			stop();
-
-    /**
-     * Fetch messages from the INS and update the report buffers.
+     * Read available data into our internal buffer
+     * @return
      */
-//    int				measure();
+    int doRawRead(void);
+
+  /**
+     * Find the sync byte in incoming stream
+     * @return 0 if synced ok
+     */
+    int resync(void);
+
+  /**
+    * Used for loopback testing
+    */
+    void sendEchoMsg(void);
 
     /**
     * Publish to uORB
@@ -138,10 +87,47 @@ private:
     void 			publish();
 
 
+private:
+    char 				    _port[20];///< The serial port we need to open
+    volatile int		_task;  ///< worker task
+    bool				   _task_should_exit;  ///< flag to make the main worker task exit
+
+    bool      _echo_test; ///< Should we send a message to the receiver for loopback?
+
+    int				_serial_fd;	 ///< serial interface to INS
+    bool      _stream_synced; ///< We've synchronized the input stream
+
+    uint32_t                _std_msg_len;
+
+    vn300_standard_msg_t    _echo_send_msg;
+    vn300_msg_buf_wrap_t*   _echo_send_wrap;
+
+    vn300_standard_msg_t    _recv_msg;
+    vn300_msg_buf_wrap_t*   _recv_wrap;
+
+
+    struct vehicle_gps_position_s	_report_gps_pos;///< uORB topic for gps position
+    orb_advert_t			_report_gps_pos_topic;	///< uORB pub for gps position
+
+    uint8_t     _rawReadBuf[256];
+    uint32_t    _rawReadAvailable;
+
+    perf_counter_t			_read_perf;
+    perf_counter_t      _cycle_perf;
+    perf_counter_t      _resync_perf;
+    perf_counter_t      _decode_perf;
+    perf_counter_t      _decode_errors;
+
+
+  perf_counter_t			_write_errors;
+    perf_counter_t			_poll_errors;
+    perf_counter_t			_read_errors;
+
+
     /**
-    * @param arg		Instance pointer for the driver that is polling.
+    * Stop the automatic measurement state machine.
     */
-//    static void			measure_trampoline(void *arg);
+    void			stop();
 
 
 };
