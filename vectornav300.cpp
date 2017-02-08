@@ -46,13 +46,13 @@
 #include "vn300_encoder.h"
 
 
-
-#define INS_BASE_DEVICE_PATH	"/dev/ins"
-#define INS0_DEVICE_PATH	    "/dev/ins0"
-
 #define INS_WAIT_BEFORE_READ   20 //ms to wait before reading to avoid many read calls
 
 #define MIN(X,Y)	((X) < (Y) ? (X) : (Y))
+
+//used for manipulating FrySky_INV signal
+#define GPIO_FRSKY_INV		(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTA|GPIO_PIN10)
+#define INVERT_FRSKY(_s)	px4_arch_gpiowrite(GPIO_FRSKY_INV, _s);
 
 
 /*
@@ -61,24 +61,28 @@
 extern "C" __EXPORT int vn300_main(int argc, char *argv[]);
 
 VectorNav300::VectorNav300(const char *port) :
-    _call{},
-    _call_interval(0),
+	_call{},
+	_call_interval(0),
 	_sensor_ok(false),
 	_measure_ticks(0),
 	_last_read(0),
-    _echo_send_msg({0}),
-    _echo_send_wrap(nullptr),
-    _recv_msg({0}),
+	_echo_send_msg({0}),
+	_echo_send_wrap(nullptr),
+	_recv_msg({0}),
 	_recv_wrap(nullptr),
 
-    _gps_pos_reports(nullptr),
+	_gps_pos_reports(nullptr),
 
 	_consecutive_fail_count(0),
 	_sample_perf(perf_alloc(PC_ELAPSED, "vn300_read")),
+	_cycle_perf(perf_alloc(PC_COUNT, "vn300_cycles")),
+
 	_buffer_overflows(perf_alloc(PC_COUNT, "vn300_buf_of")),
 
-    _write_errors(perf_alloc(PC_COUNT, "vn300_TX_err")),
-    _read_errors(perf_alloc(PC_COUNT, "vn300_RX_err"))
+	_write_errors(perf_alloc(PC_COUNT, "vn300_TX_err")),
+	_poll_errors(perf_alloc(PC_COUNT, "vn300_poll_err")),
+
+	_read_errors(perf_alloc(PC_COUNT, "vn300_RX_err"))
 {
 	// store port name
 	strncpy(_port, port, sizeof(_port));
@@ -99,20 +103,27 @@ VectorNav300::~VectorNav300()
 	}
 
 	perf_free(_sample_perf);
+	perf_free(_cycle_perf);
+
 	perf_free(_buffer_overflows);
-    perf_free(_write_errors);
-    perf_free(_read_errors);
+	perf_free(_write_errors);
+	perf_free(_poll_errors);
+	perf_free(_read_errors);
 }
 
 
 int
 VectorNav300::initSerialPort()
 {
+	// turn off FrSky_INV
+
+	INVERT_FRSKY(0);
+
     // open the serial port
-    _serial_fd = ::open(_port, O_RDWR | O_NOCTTY);//TODO add O_NONBLOCK ?
+    _serial_fd = ::open(_port, O_RDWR | O_NOCTTY | O_NONBLOCK);
 
     if (_serial_fd < 0) {
-        PX4_ERR("VN300: serial port open failed: %s err: %d", _port, errno);
+        warnx("VN300: serial port open failed: %s err: %d", _port, errno);
         return -1;
     }
 
@@ -122,6 +133,10 @@ VectorNav300::initSerialPort()
 
     // fill the struct for the new configuration
     tcgetattr(_serial_fd, &uart_config);
+
+
+		// Disable output post-processing
+		uart_config.c_oflag &= ~OPOST;
 
     // clear ONLCR flag (which appends a CR for every LF)
     uart_config.c_oflag &= ~ONLCR;
@@ -157,6 +172,7 @@ VectorNav300::init()
 
 	int ret = initSerialPort();
 	if (OK != ret) {
+			warnx("initSerialPort failed: %d", ret);
 			return -1;
 	}
 
@@ -189,6 +205,9 @@ VectorNav300::init()
 		return -1;
 	}
 
+	start();
+
+	warnx("init OK");
 	return OK;
 }
 
@@ -242,10 +261,12 @@ VectorNav300::measure()
 	//With VectorNav VN300 we don't need to do anything to begin a "measurement":
 	//we just need to wait until the receive buffer fills up
 
+	perf_count(_cycle_perf);
+
 	sendEchoMsg();
 
-	pollOrRead(_rawReadBuf, sizeof(_rawReadBuf), 1000);
-	publish();
+//	pollOrRead(_rawReadBuf, sizeof(_rawReadBuf), 1000);
+//	publish();
 
 	return OK;
 }
@@ -258,6 +279,7 @@ VectorNav300::start()
 	// reset the report ring and state machine
 	_gps_pos_reports->flush();
 
+	_call_interval = 100000;
 	// schedule a cycle to start things
     hrt_call_every(&_call,
                    1000,
@@ -295,18 +317,21 @@ void
 VectorNav300::print_info()
 {
 	perf_print_counter(_sample_perf);
+	perf_print_counter(_cycle_perf);
+
 	perf_print_counter(_buffer_overflows);
-    perf_print_counter(_write_errors);
-    perf_print_counter(_read_errors);
+	perf_print_counter(_write_errors);
+	perf_print_counter(_poll_errors);
+	perf_print_counter(_read_errors);
 	printf("poll interval:  %d ticks\n", _measure_ticks);
-    _gps_pos_reports->print_info("report queue");
+	_gps_pos_reports->print_info("report queue");
 }
 
 void VectorNav300:: sendEchoMsg()
 {
     int written = ::write(_serial_fd, _echo_send_wrap->buf, _echo_send_wrap->len);
     if (written != _echo_send_wrap->len) {
-        perf_count(_write_errors);
+			perf_count(_write_errors);
     }
 }
 
@@ -318,14 +343,13 @@ int VectorNav300::pollOrRead(uint8_t *buf, size_t buf_length, int timeout)
 	//two pollings use different underlying mechanisms (at least under posix), which makes this
 	//impossible. Instead we limit the maximum polling interval and regularly check for new orb
 	//messages.
-	const int kMaxTimeout = 50;
+	const int kMaxTimeout = 10;
 
 	pollfd fds[1];
 	fds[0].fd = _serial_fd;
 	fds[0].events = POLLIN;
 
 	int ret = poll(fds, sizeof(fds) / sizeof(fds[0]), MIN(kMaxTimeout, timeout));
-
 	if (ret > 0) {
 		// if we have new data from INS, go handle it
 		if (fds[0].revents & POLLIN) {
@@ -344,11 +368,14 @@ int VectorNav300::pollOrRead(uint8_t *buf, size_t buf_length, int timeout)
 			}
 
 			ret = ::read(_serial_fd, buf, buf_length);
-            if (ret <  0) {
-                perf_count(_read_errors);
-            }
+			if (ret <  0) {
+					perf_count(_read_errors);
+			}
 
-		} else {
+		}
+		else {
+			warnx("poll failed: %d",ret);
+			perf_count(_poll_errors);
 			ret = -1;
 		}
 	}

@@ -93,9 +93,12 @@ private:
     unsigned			_consecutive_fail_count;
 
     perf_counter_t			_sample_perf;
+    perf_counter_t      _cycle_perf;
+
     perf_counter_t			_buffer_overflows;
     perf_counter_t			_write_errors;
-    perf_counter_t			_read_errors;
+  perf_counter_t			_poll_errors;
+  perf_counter_t			_read_errors;
 
 
     /**
