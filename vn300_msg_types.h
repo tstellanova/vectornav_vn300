@@ -114,20 +114,19 @@ typedef struct {
 } vn300_msg_buf_wrap_t;
 
 
-
 typedef struct {
-    vn_time_nanoseconds   gps_nanoseconds;
-    vn_vec3f              angular_rate;
-    vn_vec3f            euler_yaw_pitch_roll;
-    vn_vec4f            att_quaternion;
+    vn_time_nanoseconds   gps_nanoseconds;///< Nanoseconds since the start of GPS time: Jan 06, 1980	00:00:00	UTC
+    vn_vec3f              angular_rate;///< Angular rate in rad/sec in body frame
+    vn_vec3f            euler_yaw_pitch_roll;///< Body frame with respect to local NED frame (degrees)
+    vn_vec4f            att_quaternion;///< Body frame with respect to local NED frame. Last term is scalar.
 
-    vn_pos3_t    pos_lla;
-    vn_pos3_t   pos_ecef;
-    vn_vel3_t   vel_body;
-    vn_vel3_t    vel_ned; //velocity in m/s
+    vn_pos3_t    pos_lla;///< Lat (deg), Lon (deg), Altitude above ellipsoid (m)
+    vn_pos3_t   pos_ecef;///< GPS position in Earth centered Earth fixed (ECEF) frame, in meters
+    vn_vel3_t   vel_body;///< Velocity in body frame, in m/s
+    vn_vel3_t    vel_ned;///< GPS velocity in North East Down (NED) frame,  in m/s
 
-    vn_uncertainty    pos_uncertainty; // uncertainty (1 Sigma) in the current position estimate, in meters.
-    vn_uncertainty    vel_uncertainty; // uncertainty (1 Sigma) in the current velocity estimate, in m/s.
+    vn_uncertainty    pos_uncertainty; ///< uncertainty (1 Sigma) in the current position estimate, in meters.
+    vn_uncertainty    vel_uncertainty; ///< uncertainty (1 Sigma) in the current velocity estimate, in m/s.
 
 } __attribute__((packed)) vn300_standard_msg_t ; //we use packed so that we can use memcmp to compares
 

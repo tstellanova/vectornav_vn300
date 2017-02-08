@@ -455,7 +455,7 @@ void VectorNav300::handleSerialData(void)
 			perf_end(_decode_perf);
 
 			if (VN300_DECODE_OK == res) {
-				publish(); //TODO
+				publish();
 			}
 			else {
 				perf_count(_decode_errors);
