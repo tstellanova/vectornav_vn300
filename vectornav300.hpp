@@ -108,12 +108,12 @@ private:
 
     struct vehicle_gps_position_s	_report_gps_pos;///< uORB topic for gps position
     orb_advert_t			_report_gps_pos_topic;	///< uORB pub for gps position
+    int _gps_pos_orb_instance;
 
     uint8_t     _rawReadBuf[256];
     uint32_t    _rawReadAvailable;
 
     perf_counter_t			_read_perf;
-    perf_counter_t      _cycle_perf;
     perf_counter_t      _resync_perf;
     perf_counter_t      _decode_perf;
     perf_counter_t      _decode_errors;

@@ -77,10 +77,13 @@ VectorNav300::VectorNav300(const char *port) :
 		_echo_send_wrap(nullptr),
 		_recv_msg({0}),
 		_recv_wrap(nullptr),
+		_report_gps_pos({0}),
+		_report_gps_pos_topic(nullptr),
+		_gps_pos_orb_instance(-1),
+
 
 		_rawReadAvailable(0),
 		_read_perf(perf_alloc(PC_ELAPSED, "vn300_read")),
-		_cycle_perf(perf_alloc(PC_COUNT, "vn300_cycles")),
 		_resync_perf(perf_alloc(PC_COUNT, "vn300_resync")),
 		_decode_perf(perf_alloc(PC_ELAPSED, "vn300_decode_perf")),
 
@@ -106,7 +109,6 @@ VectorNav300::~VectorNav300()
 	stop();
 
 	perf_free(_read_perf);
-	perf_free(_cycle_perf);
 	perf_free(_resync_perf);
 	perf_free(_decode_perf);
 
@@ -206,8 +208,6 @@ VectorNav300::taskMain()
 					sendEchoMsg();
 				}
 
-			perf_count(_cycle_perf);
-
 			int status = ::poll(fds, sizeof(fds) / sizeof(fds[0]), 250);
         if (status > 0) {
             if (fds[0].revents & POLLIN) {
@@ -295,11 +295,14 @@ VectorNav300::stop()
 void
 VectorNav300::publish()
 {
-    int gps_report_status = 0;
-
 	_report_gps_pos.lat = (int32_t)( _recv_msg.pos_lla.c[0] * 1E7); //Latitude in 1E-7 degrees
 	_report_gps_pos.lon = (int32_t)( _recv_msg.pos_lla.c[1] * 1E7); //Longitude in 1E-7 degrees
 	_report_gps_pos.alt = (int32_t)(_recv_msg.pos_lla.c[2] * 1E3); //Altitude in 1E-3 meters above MSL, (millimetres)
+
+	_report_gps_pos.vel_n_m_s = _recv_msg.vel_ned.c[0];
+	_report_gps_pos.vel_e_m_s = _recv_msg.vel_ned.c[1];
+	_report_gps_pos.vel_d_m_s = _recv_msg.vel_ned.c[2];
+	_report_gps_pos.vel_ned_valid = true;
 
 	_report_gps_pos.fix_type = 3; //3D Fix
 
@@ -311,8 +314,9 @@ VectorNav300::publish()
 //
 
 
-
-    orb_publish_auto(ORB_ID(vehicle_gps_position), &_report_gps_pos_topic, &_report_gps_pos, &gps_report_status, ORB_PRIO_HIGH);
+//	orb_publish_auto(ORB_ID(vehicle_gps_position), &_report_gps_pos_pub, &_report_gps_pos, &_gps_orb_instance,
+//									 ORB_PRIO_DEFAULT);
+	orb_publish_auto(ORB_ID(vehicle_gps_position), &_report_gps_pos_topic, &_report_gps_pos, &_gps_pos_orb_instance, ORB_PRIO_HIGH);
 
 
 }
@@ -320,7 +324,6 @@ void
 VectorNav300::print_info()
 {
 	perf_print_counter(_read_perf);
-	perf_print_counter(_cycle_perf);
 	perf_print_counter(_resync_perf);
 	perf_print_counter(_decode_perf);
 	perf_print_counter(_decode_errors);
