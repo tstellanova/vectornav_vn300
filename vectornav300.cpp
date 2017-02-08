@@ -40,11 +40,12 @@
 #include <uORB/topics/distance_sensor.h>
 #include <uORB/topics/vehicle_gps_position.h>
 
+#include <systemlib/scheduling_priorities.h>
+
 #include <board_config.h>
 
 #include "vectornav300.hpp"
 #include "vn300_encoder.h"
-
 
 #define INS_WAIT_BEFORE_READ   20 //ms to wait before reading to avoid many read calls
 
@@ -60,9 +61,15 @@
  */
 extern "C" __EXPORT int vn300_main(int argc, char *argv[]);
 
+namespace
+{
+    //global reference
+    VectorNav300	*g_dev = nullptr;
+}
+
 VectorNav300::VectorNav300(const char *port) :
-	_call{},
-	_call_interval(0),
+        _task_should_exit(false),
+
 	_sensor_ok(false),
 	_measure_ticks(0),
 	_last_read(0),
@@ -89,6 +96,8 @@ VectorNav300::VectorNav300(const char *port) :
 	// enforce null termination
 	_port[sizeof(_port) - 1] = '\0';
 
+    g_dev = this;
+
 }
 
 VectorNav300::~VectorNav300()
@@ -109,14 +118,60 @@ VectorNav300::~VectorNav300()
 	perf_free(_write_errors);
 	perf_free(_poll_errors);
 	perf_free(_read_errors);
+
 }
 
 
 int
-VectorNav300::initSerialPort()
+VectorNav300::openUART()
+{
+    // turn off FrSky_INV
+    INVERT_FRSKY(0);
+
+    // open fd
+    _serial_fd = ::open(_port,  O_RDWR | O_NOCTTY);
+
+    if (_serial_fd <= 0) {
+        warnx("VN300: serial port open failed: %s err: %d", _port, errno);
+        return -1;
+    }
+
+    struct termios uart_config;
+    int termios_state;
+
+    // fill the struct for the new configuration
+    tcgetattr(_serial_fd, &uart_config);
+
+    // clear ONLCR flag (which appends a CR for every LF)
+    uart_config.c_oflag &= ~ONLCR;
+
+    // no parity, one stop bit
+    uart_config.c_cflag &= ~(CSTOPB | PARENB);
+
+    unsigned speed = B115200; //B9600; //B115200;
+
+    // set baud
+    if ((termios_state = cfsetispeed(&uart_config, speed)) < 0) {
+        warnx("ERR CFG: %d ISPD", termios_state);
+    }
+
+    if ((termios_state = cfsetospeed(&uart_config, speed)) < 0) {
+        warnx("ERR CFG: %d OSPD\n", termios_state);
+    }
+
+    if ((termios_state = tcsetattr(_serial_fd, TCSANOW, &uart_config)) < 0) {
+        warnx("ERR baud %d ATTR", termios_state);
+    }
+
+    return _serial_fd;
+
+}
+
+/*
+int
+VectorNav300::openUART()
 {
 	// turn off FrSky_INV
-
 	INVERT_FRSKY(0);
 
     // open the serial port
@@ -147,7 +202,7 @@ VectorNav300::initSerialPort()
     // default VN300 serial baud rate
     const unsigned kSerialBaudRate = B115200;
 
-    /* set baud rate */
+    // set baud rate
     if ((termios_state = cfsetispeed(&uart_config, kSerialBaudRate)) < 0) {
         warnx("ERR CFG: %d ISPD", termios_state);
     }
@@ -162,50 +217,111 @@ VectorNav300::initSerialPort()
 
     return OK;
 }
+*/
 
+
+void
+VectorNav300::task_main_trampoline(void *arg)
+{
+    //TODO static_cast<VectorNav300 *>(arg);
+    g_dev->taskMain();
+}
+
+void
+VectorNav300::setupThings()
+{
+    openUART();
+    if (_serial_fd <= 0) {
+        warnx("failed to open serial port: %s err: %d", _port, errno);
+        // tell the dtor that we are exiting, set error code
+        _task = -1;
+        _exit(1);
+    }
+}
+
+void
+VectorNav300::teardownThings()
+{
+    if (_serial_fd > 0) {
+        ::close(_serial_fd);
+        _serial_fd = -1;
+    }
+}
+
+void
+VectorNav300::taskMain()
+{
+    setupThings();
+
+    while (!_task_should_exit) {
+        // poll descriptor
+        struct pollfd fds[1];
+        fds[0].fd = _serial_fd;
+        fds[0].events = POLLIN;
+
+        int status = ::poll(fds, sizeof(fds) / sizeof(fds[0]), 250);
+        if (status > 0) {
+            if (fds[0].revents & POLLIN) {
+                perf_begin(_sample_perf);
+                //TODO read
+                //perf_count(_serial_avail_pc);
+                handleSerialData();
+                sendEchoMsg();
+                perf_end(_sample_perf);
+            }
+        }
+        else if (status < 0) {
+            warnx("poll status: %d errno: %d",status, errno);
+        }
+    }
+
+    warnx("exiting");
+    teardownThings();
+
+}
 
 int
 VectorNav300::init()
 {
-	//TODO load any configuration params here
-	//	param_get(param_find("SENS_EN_VN300"), &hw_model);
+    _echo_send_wrap = vn300_alloc_msg_wrap();
+    if (nullptr == _echo_send_wrap) {
+        warnx("_echo_send_wrap mem err");
+        return -1;
+    }
 
-	int ret = initSerialPort();
-	if (OK != ret) {
-			warnx("initSerialPort failed: %d", ret);
-			return -1;
-	}
+    _recv_wrap = vn300_alloc_msg_wrap();
+    if (nullptr == _recv_wrap) {
+        warnx("_recv_wrap mem err");
+        return -1;
+    }
 
-	_echo_send_wrap = vn300_alloc_msg_wrap();
-	if (nullptr == _echo_send_wrap) {
-		warnx("_echo_send_wrap mem err");
-		return -1;
-	}
+    _std_msg_len = _echo_send_wrap->len;
 
-	_recv_wrap = vn300_alloc_msg_wrap();
-	if (nullptr == _recv_wrap) {
-			warnx("_recv_wrap mem err");
-			return -1;
-	}
+    _echo_send_msg.vel_uncertainty = 0.25f;
+    _echo_send_msg.pos_uncertainty = 0.88f;
 
-	_std_msg_len = _echo_send_wrap->len;
+    vn300_encode_res encode_res =  vn300_encode_standard_msg(&_echo_send_msg , _echo_send_wrap);
+    if (VN300_ENCODE_OK != encode_res) {
+        warnx("encode_standard_msg fail");
+        return -1;
+    }
 
-	_echo_send_msg.vel_uncertainty = 0.25f;
-	_echo_send_msg.pos_uncertainty = 0.88f;
+    _gps_pos_reports = new ringbuffer::RingBuffer(2, sizeof(vehicle_gps_position_s));
+    if (nullptr == _gps_pos_reports) {
+        warnx("mem err");
+        return -1;
+    }
 
-	vn300_encode_res encode_res =  vn300_encode_standard_msg(&_echo_send_msg , _echo_send_wrap);
-	if (VN300_ENCODE_OK != encode_res) {
-			warnx("encode_standard_msg fail");
-			return -1;
-	}
+    _task = px4_task_spawn_cmd("vn300t", SCHED_DEFAULT,
+                               SCHED_PRIORITY_SLOW_DRIVER,
+                               1100,
+                               (main_t)&VectorNav300::task_main_trampoline,
+                               nullptr);
 
-	_gps_pos_reports = new ringbuffer::RingBuffer(2, sizeof(vehicle_gps_position_s));
-	if (nullptr == _gps_pos_reports) {
-		warnx("mem err");
-		return -1;
-	}
-
-	start();
+    if (_task < 0) {
+        warnx("task start failed: %d", errno);
+        return -errno;
+    }
 
 	warnx("init OK");
 	return OK;
@@ -215,6 +331,25 @@ VectorNav300::init()
 ssize_t
 VectorNav300::read(struct file *filp, char *buffer, size_t buflen)
 {
+
+    return  -EAGAIN;
+
+//    if (_task) {
+//        //While there is space in the caller's buffer, and reports, copy them.
+//        //we are careful to avoid racing with them.
+//        while (count--) {
+//            if (_reports->get(rbuf)) {
+//                ret += sizeof(*rbuf);
+//                rbuf++;
+//            }
+//        }
+//
+//        // if there was no data, warn the caller
+//        return ret ? ret : -EAGAIN;
+//    }
+
+
+    /*
 	unsigned count = buflen / sizeof(struct vehicle_gps_position_s);
 	struct vehicle_gps_position_s *rbuf = reinterpret_cast<struct vehicle_gps_position_s *>(buffer);
 	int ret = 0;
@@ -253,23 +388,24 @@ VectorNav300::read(struct file *filp, char *buffer, size_t buflen)
     }
 
 	return ret;
+     */
 }
 
-int
-VectorNav300::measure()
-{
-	//With VectorNav VN300 we don't need to do anything to begin a "measurement":
-	//we just need to wait until the receive buffer fills up
-
-	perf_count(_cycle_perf);
-
-	sendEchoMsg();
-
-//	pollOrRead(_rawReadBuf, sizeof(_rawReadBuf), 1000);
-//	publish();
-
-	return OK;
-}
+//int
+//VectorNav300::measure()
+//{
+//	//With VectorNav VN300 we don't need to do anything to begin a "measurement":
+//	//we just need to wait until the receive buffer fills up
+//
+//	perf_count(_cycle_perf);
+//
+//	sendEchoMsg();
+//
+////	pollOrRead(_rawReadBuf, sizeof(_rawReadBuf), 1000);
+////	publish();
+//
+//	return OK;
+//}
 
 
 
@@ -279,28 +415,15 @@ VectorNav300::start()
 	// reset the report ring and state machine
 	_gps_pos_reports->flush();
 
-	_call_interval = 100000;
-	// schedule a cycle to start things
-    hrt_call_every(&_call,
-                   1000,
-                   _call_interval ,
-                   (hrt_callout)&VectorNav300::measure_trampoline, this);
-
 }
 
 void
 VectorNav300::stop()
 {
-    hrt_cancel(&_call);
-    _gps_pos_reports->flush();
+    _task_should_exit = true;
 }
 
-void
-VectorNav300::measure_trampoline(void *arg)
-{
-	VectorNav300 *dev = static_cast<VectorNav300 *>(arg);
-	dev->measure();
-}
+
 
 
 
@@ -336,6 +459,12 @@ void VectorNav300:: sendEchoMsg()
 }
 
 
+void VectorNav300::handleSerialData(void)
+{
+//TODO
+}
+
+/*
 int VectorNav300::pollOrRead(uint8_t *buf, size_t buf_length, int timeout)
 {
 	//Poll only for the serial data. In the same thread we also need to handle orb messages,
@@ -353,13 +482,13 @@ int VectorNav300::pollOrRead(uint8_t *buf, size_t buf_length, int timeout)
 	if (ret > 0) {
 		// if we have new data from INS, go handle it
 		if (fds[0].revents & POLLIN) {
-			/*
-			 * We are here because poll says there is some data, so this
-			 * won't block even on a blocking device. But don't read immediately
-			 * by 1-2 bytes, wait for some more data to save expensive read() calls.
-			 * If we have all requested data available, read it without waiting.
-			 * If more bytes are available, we'll go back to poll() again.
-			 */
+
+//			 * We are here because poll says there is some data, so this
+//			 * won't block even on a blocking device. But don't read immediately
+//			 * by 1-2 bytes, wait for some more data to save expensive read() calls.
+//			 * If we have all requested data available, read it without waiting.
+//			 * If more bytes are available, we'll go back to poll() again.
+//			 *
 			int err = 0, bytesAvailable = 0;
 			err = ioctl(_serial_fd, FIONREAD, (unsigned long)&bytesAvailable);
 
@@ -384,6 +513,7 @@ int VectorNav300::pollOrRead(uint8_t *buf, size_t buf_length, int timeout)
 
 
 }
+*/
 
 
 /**

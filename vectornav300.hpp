@@ -57,17 +57,33 @@ protected:
      *	    < 0 for error
      *	    > 0 number of bytes read
      */
-    virtual int pollOrRead(uint8_t *buf, size_t buf_length, int timeout);
-    void            sendEchoMsg();
+//    virtual int pollOrRead(uint8_t *buf, size_t buf_length, int timeout);
+    void    sendEchoMsg(void);
 
-    int         initSerialPort();
+
+
+    /**
+    * Trampoline to the worker task
+    */
+    static void			task_main_trampoline(void *arg);
+
+    /**
+     * Worker task: main thread that parses incoming data, always running
+     */
+    void				taskMain(void);
+
+    void setupThings(void);
+    void resetThings(void);
+    void teardownThings(void);
+    int openUART(void);
+    void handleSerialData(void);
 
 
 private:
     char 				_port[20];
+    volatile int		_task;  ///< worker task
+    bool				_task_should_exit;  ///< flag to make the main worker task exit
 
-    struct hrt_call		_call;
-    unsigned		    _call_interval;
 
     bool				_sensor_ok;
     int				_measure_ticks;
@@ -114,7 +130,7 @@ private:
     /**
      * Fetch messages from the INS and update the report buffers.
      */
-    int				measure();
+//    int				measure();
 
     /**
     * Publish to uORB
@@ -125,7 +141,7 @@ private:
     /**
     * @param arg		Instance pointer for the driver that is polling.
     */
-    static void			measure_trampoline(void *arg);
+//    static void			measure_trampoline(void *arg);
 
 
 };
