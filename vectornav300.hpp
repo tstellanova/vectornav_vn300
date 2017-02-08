@@ -72,6 +72,11 @@ protected:
      */
     int doRawRead(void);
 
+  /**
+   * Clear out our raw receive buffer
+   */
+    void clearReceiveBuffer(void);
+
     /**
      * Find the sync byte in incoming stream
      * @return 0 if synced ok, < 0 if error

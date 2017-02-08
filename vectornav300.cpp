@@ -391,6 +391,14 @@ int VectorNav300::doRawRead(void)
 	return _rawReadAvailable;
 }
 
+
+void VectorNav300::clearReceiveBuffer(void)
+{
+	_rawReadAvailable = 0;
+	memset(_rawReadBuf,0,sizeof(_rawReadBuf));
+	_stream_synced = false;
+}
+
 int VectorNav300::resync(void)
 {
 	perf_count(_resync_perf);
@@ -410,8 +418,7 @@ int VectorNav300::resync(void)
 		}
 	}
 	if (!_stream_synced) {
-		_rawReadAvailable = 0;
-		memset(_rawReadBuf,0, sizeof(_rawReadBuf));
+		clearReceiveBuffer();
 	}
 
 	return 0;
@@ -444,6 +451,7 @@ void VectorNav300::handleSerialData(void)
 			}
 			else {
 				perf_count(_decode_errors);
+				clearReceiveBuffer();
 			}
 		}
 	}
@@ -459,7 +467,6 @@ void VectorNav300::handleSerialData(void)
  */
 namespace vectornav300
 {
-
 	void	start(const char *port);
 	void	stop();
 	void  test();
@@ -489,7 +496,6 @@ namespace vectornav300
 		exit(0);
 
 	fail:
-
 		if (g_dev != nullptr) {
 			delete g_dev;
 			g_dev = nullptr;
@@ -513,7 +519,6 @@ namespace vectornav300
 
 		exit(0);
 	}
-
 
 	/**
 	 * Print a little info about the driver.
