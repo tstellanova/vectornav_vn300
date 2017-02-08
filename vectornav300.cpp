@@ -71,7 +71,7 @@ namespace
 
 VectorNav300::VectorNav300(const char *port) :
 		_task_should_exit(false),
-		_echo_test(true), //TODO read from params instead
+		_echo_test(false),
 		_serial_fd(-1),
 		_stream_synced(false),
 		_echo_send_msg({0}),
@@ -178,114 +178,72 @@ VectorNav300::task_main_trampoline(void *arg)
 }
 
 void
-VectorNav300::setupThings()
+VectorNav300::setup()
 {
-    openUART();
-    if (_serial_fd <= 0) {
-        warnx("failed to open serial port: %s err: %d", _port, errno);
-        // tell the dtor that we are exiting, set error code
-        _task = -1;
-        _exit(1);
-    }
+	_recv_wrap = vn300_alloc_msg_wrap();
+	if (nullptr == _recv_wrap) {
+		warnx("_recv_wrap mem err");
+		_task = -1;
+		_exit(1);
+	}
+
+	_std_msg_len = _recv_wrap->len;
+
+	openUART();
+	if (_serial_fd <= 0) {
+		warnx("failed to open serial port: %s err: %d", _port, errno);
+		// tell the dtor that we are exiting, set error code
+		_task = -1;
+		_exit(1);
+	}
 }
 
 void
-VectorNav300::teardownThings()
+VectorNav300::teardown()
 {
-    if (_serial_fd > 0) {
-        ::close(_serial_fd);
-        _serial_fd = -1;
-    }
+	if (_serial_fd > 0) {
+		::close(_serial_fd);
+		_serial_fd = -1;
+	}
 }
 
 void
 VectorNav300::taskMain()
 {
-    setupThings();
+	setup();
 
-    while (!_task_should_exit) {
-        // poll descriptor
-        struct pollfd fds[1];
-        fds[0].fd = _serial_fd;
-        fds[0].events = POLLIN;
+	while (!_task_should_exit) {
+			// poll descriptor
+			struct pollfd fds[1];
+			fds[0].fd = _serial_fd;
+			fds[0].events = POLLIN;
 
-				if (_echo_test) {
-					sendEchoMsg();
-				}
+			if (_echo_test) {
+				sendEchoMsg();
+			}
 
 			int status = ::poll(fds, sizeof(fds) / sizeof(fds[0]), 250);
-        if (status > 0) {
-            if (fds[0].revents & POLLIN) {
-							//Some read data is available: read and process it
-							perf_begin(_read_perf);
-							handleSerialData();
-							perf_end(_read_perf);
-            }
-        }
-        else if (status < 0) {
-            warnx("poll status: %d errno: %d",status, errno);
-        }
-    }
+			if (status > 0) {
+					if (fds[0].revents & POLLIN) {
+						//Some read data is available: read and process it
+						perf_begin(_read_perf);
+						handleSerialData();
+						perf_end(_read_perf);
+					}
+			}
+			else if (status < 0) {
+					warnx("poll status: %d errno: %d",status, errno);
+			}
+	}
 
-    warnx("exiting");
-    teardownThings();
+	warnx("exiting");
+	teardown();
 
 }
 
 int
 VectorNav300::init()
 {
-	_echo_send_wrap = vn300_alloc_msg_wrap();
-	if (nullptr == _echo_send_wrap) {
-			warnx("_echo_send_wrap mem err");
-			return -1;
-	}
-
-	_recv_wrap = vn300_alloc_msg_wrap();
-	if (nullptr == _recv_wrap) {
-			warnx("_recv_wrap mem err");
-			return -1;
-	}
-
-	_std_msg_len = _echo_send_wrap->len;
-
-	//setup some crappy test data
-	_echo_send_msg.gps_nanoseconds = 1234567890;
-
-	_echo_send_msg.angular_rate.c[0] = 1.0f;
-	_echo_send_msg.angular_rate.c[1] = 2.0f;
-	_echo_send_msg.angular_rate.c[2] = 3.0f;
-
-	_echo_send_msg.euler_yaw_pitch_roll.c[0] = 2.0f;
-	_echo_send_msg.euler_yaw_pitch_roll.c[1] = 4.0f;
-	_echo_send_msg.euler_yaw_pitch_roll.c[2] = 8.0f;
-
-	_echo_send_msg.pos_lla.c[0] = 37.827514;
-	_echo_send_msg.pos_lla.c[1] = -122.372918;
-	_echo_send_msg.pos_lla.c[2] = 314.59;
-
-	_echo_send_msg.pos_ecef.c[0] = 100.0;
-	_echo_send_msg.pos_ecef.c[1] = 200.0;
-	_echo_send_msg.pos_ecef.c[2] = 300.0;
-
-	_echo_send_msg.vel_ned.c[0] = 111.0;
-	_echo_send_msg.vel_ned.c[1] = 222.0;
-	_echo_send_msg.vel_ned.c[2] = 333.0;
-
-	_echo_send_msg.vel_body.c[0] = 222.0;
-	_echo_send_msg.vel_body.c[1] = 444.0;
-	_echo_send_msg.vel_body.c[2] = 888.0;
-
-
-	_echo_send_msg.vel_uncertainty = 0.25f;
-	_echo_send_msg.pos_uncertainty = 0.88f;
-
-	vn300_encode_res encode_res =  vn300_encode_standard_msg(&_echo_send_msg , _echo_send_wrap);
-	if (VN300_ENCODE_OK != encode_res) {
-			warnx("encode_standard_msg fail");
-			return -1;
-	}
-
 	_task = px4_task_spawn_cmd("vn300t", SCHED_DEFAULT,
 														 SCHED_PRIORITY_SLOW_DRIVER,
 														 1100,
@@ -315,17 +273,12 @@ void
 VectorNav300::publish()
 {
 
-	//time_nsec
+	//Time
   _report_ins.time_nsec = _recv_msg.gps_nanoseconds;
 
-
-  //angular_rate
+	//Attitude
 	memcpy((void*)&_report_ins.angular_rate, (void*)&_recv_msg.angular_rate, sizeof(vn_vec3f));
-
-  //euler_yaw_pitch_roll
 	memcpy((void*)&_report_ins.euler_yaw_pitch_roll, (void*)&_recv_msg.euler_yaw_pitch_roll, sizeof(vn_vec3f));
-
-  //att_q
 	memcpy((void*)&_report_ins.att_q, (void*)&_recv_msg.att_quaternion, sizeof(vn_vec4f));
 
   // LLA position
@@ -336,51 +289,16 @@ VectorNav300::publish()
   //pos_ecef
 	memcpy((void*)&_report_ins.pos_ecef, (void*)&_recv_msg.pos_ecef, sizeof(vn_pos3_t));
 
-  //vel_body
+	//Velocity
 	memcpy((void*)&_report_ins.vel_body, (void*)&_recv_msg.vel_body, sizeof(vn_vel3_t));
-
-  //vel_ned
 	memcpy((void*)&_report_ins.vel_ned, (void*)&_recv_msg.vel_ned, sizeof(vn_vel3_t));
 
+	//Uncertainty
   _report_ins.pos_uncertainty = _recv_msg.pos_uncertainty;
   _report_ins.vel_uncertainty = _recv_msg.vel_uncertainty;
 
-	_report_ins.timestamp = hrt_absolute_time();
+	_report_ins.timestamp = hrt_absolute_time();//required to trigger uORB
   orb_publish_auto(ORB_ID(ins_common), &_report_ins_topic, &_report_ins, &_orb_pub_instance, ORB_PRIO_HIGH);
-
-
-  /*
-	_report_gps_pos.time_utc_usec = (uint64_t )_recv_msg.gps_nanoseconds + (dumb_counter++);
-
-	// LLA position
-	_report_gps_pos.lat = (int32_t)( _recv_msg.pos_lla.c[0] * 1E7); //Latitude in 1E-7 degrees
-	_report_gps_pos.lon = (int32_t)( _recv_msg.pos_lla.c[1] * 1E7); //Longitude in 1E-7 degrees
-	_report_gps_pos.alt = (int32_t)(_recv_msg.pos_lla.c[2] * 1E3); //Altitude in 1E-3 meters above MSL, (millimetres)
-	_report_gps_pos.alt_ellipsoid = _report_gps_pos.alt;
-
-	// NED velocity
-	_report_gps_pos.vel_n_m_s = _recv_msg.vel_ned.c[0];
-	_report_gps_pos.vel_e_m_s = _recv_msg.vel_ned.c[1];
-	_report_gps_pos.vel_d_m_s = _recv_msg.vel_ned.c[2];
-	_report_gps_pos.vel_ned_valid = true;
-
-	_report_gps_pos.fix_type = 3; //3D Fix
-
-	_report_gps_pos.eph = _recv_msg.pos_uncertainty;
-	_report_gps_pos.epv = _recv_msg.pos_uncertainty;
-
-	_report_gps_pos.s_variance_m_s = _recv_msg.vel_uncertainty; //GPS speed accuracy estimate, (metres/sec)
-
-	float vx,vy,vz,vtotal;
-	vx = _recv_msg.vel_body.c[0];
-	vy = _recv_msg.vel_body.c[1];
-	vz = _recv_msg.vel_body.c[2];
-	vtotal = sqrt(vx*vx + vy*vy + vz*vz);
-	_report_gps_pos.vel_m_s = vtotal;
-
-	orb_publish_auto(ORB_ID(vehicle_gps_position), &_report_gps_pos_topic, &_report_gps_pos, &_orb_pub_instance, ORB_PRIO_HIGH);
-  */
-
 
 }
 
@@ -399,12 +317,62 @@ VectorNav300::print_info()
 
 }
 
+void
+VectorNav300::start_test()
+{
+	_echo_test = true;
+
+	//setup some crappy test data
+	_echo_send_msg.gps_nanoseconds = 1234567890;
+
+	_echo_send_msg.angular_rate.c[0] = 1.0f;
+	_echo_send_msg.angular_rate.c[1] = 2.0f;
+	_echo_send_msg.angular_rate.c[2] = 3.0f;
+
+	_echo_send_msg.euler_yaw_pitch_roll.c[0] = 2.0f;
+	_echo_send_msg.euler_yaw_pitch_roll.c[1] = 4.0f;
+	_echo_send_msg.euler_yaw_pitch_roll.c[2] = 8.0f;
+
+	_echo_send_msg.pos_lla.c[0] = 37.827514;
+	_echo_send_msg.pos_lla.c[1] = -122.372918;
+	_echo_send_msg.pos_lla.c[2] = 314.59;
+
+	_echo_send_msg.pos_ecef.c[0] = 100.0;
+	_echo_send_msg.pos_ecef.c[1] = 200.0;
+	_echo_send_msg.pos_ecef.c[2] = 300.0;
+
+	_echo_send_msg.vel_ned.c[0] = 111.0;
+	_echo_send_msg.vel_ned.c[1] = 222.0;
+	_echo_send_msg.vel_ned.c[2] = 333.0;
+
+	_echo_send_msg.vel_body.c[0] = 222.0;
+	_echo_send_msg.vel_body.c[1] = 444.0;
+	_echo_send_msg.vel_body.c[2] = 888.0;
+
+	_echo_send_msg.vel_uncertainty = 0.25f;
+	_echo_send_msg.pos_uncertainty = 0.88f;
+
+	_echo_send_wrap = vn300_alloc_msg_wrap();
+	if (nullptr == _echo_send_wrap) {
+		warnx("_echo_send_wrap mem err");
+		return;
+	}
+
+	vn300_encode_res encode_res =  vn300_encode_standard_msg(&_echo_send_msg , _echo_send_wrap);
+	if (VN300_ENCODE_OK != encode_res) {
+		warnx("encode_standard_msg fail");
+		return;
+	}
+
+}
+
+
 void VectorNav300:: sendEchoMsg()
 {
-    int written = ::write(_serial_fd, _echo_send_wrap->buf, _echo_send_wrap->len);
-    if (written != _echo_send_wrap->len) {
-			perf_count(_write_errors);
-    }
+	int written = ::write(_serial_fd, _echo_send_wrap->buf, _echo_send_wrap->len);
+	if (written != _echo_send_wrap->len) {
+		perf_count(_write_errors);
+	}
 }
 
 
@@ -451,18 +419,17 @@ int VectorNav300::resync(void)
 
 void VectorNav300::handleSerialData(void)
 {
-
-	if (doRawRead() >= _std_msg_len) {
-		if (_rawReadAvailable >= _std_msg_len) {
-			if (VECTORNAV_HEADER_SYNC_BYTE != _rawReadBuf[0]) {
-				_stream_synced = false;
-			}
+	doRawRead();
+	if (_rawReadAvailable >= _std_msg_len) {
+		if (VECTORNAV_HEADER_SYNC_BYTE != _rawReadBuf[0]) {
+			_stream_synced = false;
 		}
 
 		if (!_stream_synced) {
 			resync();
 		}
 
+		//recheck whether we have enough data after syncing
 		if (_stream_synced && (_rawReadAvailable >= _std_msg_len)) {
 			//put encoded data in wrapper
 			memcpy(_recv_wrap->buf, _rawReadBuf, _std_msg_len);
@@ -481,58 +448,10 @@ void VectorNav300::handleSerialData(void)
 		}
 	}
 
-}
-
-/*
-int VectorNav300::pollOrRead(uint8_t *buf, size_t buf_length, int timeout)
-{
-	//Poll only for the serial data. In the same thread we also need to handle orb messages,
-	//so ideally we would poll on both, the serial fd and orb subscription. Unfortunately the
-	//two pollings use different underlying mechanisms (at least under posix), which makes this
-	//impossible. Instead we limit the maximum polling interval and regularly check for new orb
-	//messages.
-	const int kMaxTimeout = 10;
-
-	pollfd fds[1];
-	fds[0].fd = _serial_fd;
-	fds[0].events = POLLIN;
-
-	int ret = poll(fds, sizeof(fds) / sizeof(fds[0]), MIN(kMaxTimeout, timeout));
-	if (ret > 0) {
-		// if we have new data from INS, go handle it
-		if (fds[0].revents & POLLIN) {
-
-//			 * We are here because poll says there is some data, so this
-//			 * won't block even on a blocking device. But don't read immediately
-//			 * by 1-2 bytes, wait for some more data to save expensive read() calls.
-//			 * If we have all requested data available, read it without waiting.
-//			 * If more bytes are available, we'll go back to poll() again.
-//			 *
-			int err = 0, bytesAvailable = 0;
-			err = ioctl(_serial_fd, FIONREAD, (unsigned long)&bytesAvailable);
-
-			if ((err != 0) || (bytesAvailable < buf_length)) {
-				usleep(INS_WAIT_BEFORE_READ * 1000);
-			}
-
-			ret = ::read(_serial_fd, buf, buf_length);
-			if (ret <  0) {
-					perf_count(_read_errors);
-			}
-
-		}
-		else {
-			warnx("poll failed: %d",ret);
-			perf_count(_poll_errors);
-			ret = -1;
-		}
-	}
-
-	return ret;
-
 
 }
-*/
+
+
 
 
 /**
@@ -541,77 +460,85 @@ int VectorNav300::pollOrRead(uint8_t *buf, size_t buf_length, int timeout)
 namespace vectornav300
 {
 
-//VectorNav300	*g_dev;
+	void	start(const char *port);
+	void	stop();
+	void  test();
+	void	info();
 
-void	start(const char *port);
-void	stop();
-void	info();
+	/**
+	 * Start the driver.
+	 */
+	void
+	start(const char *port)
+	{
+		if (g_dev != nullptr) {
+			errx(1, "already started");
+		}
 
-/**
- * Start the driver.
- */
-void
-start(const char *port)
-{
-	if (g_dev != nullptr) {
-		errx(1, "already started");
+		// create the driver
+		g_dev = new VectorNav300(port);
+
+		if (g_dev == nullptr) {
+			goto fail;
+		}
+
+		if (OK != g_dev->init()) {
+			goto fail;
+		}
+
+		exit(0);
+
+	fail:
+
+		if (g_dev != nullptr) {
+			delete g_dev;
+			g_dev = nullptr;
+		}
+
+		errx(1, "driver start failed");
 	}
 
-	// create the driver
-	g_dev = new VectorNav300(port);
+	/**
+	 * Stop the driver
+	 */
+	void stop()
+	{
+		if (g_dev != nullptr) {
+			delete g_dev;
+			g_dev = nullptr;
 
-	if (g_dev == nullptr) {
-		goto fail;
+		} else {
+			errx(1, "driver not running");
+		}
+
+		exit(0);
 	}
 
-	if (OK != g_dev->init()) {
-		goto fail;
+
+	/**
+	 * Print a little info about the driver.
+	 */
+	void
+	info()
+	{
+		if (nullptr == g_dev) {
+			errx(1, "driver not running");
+		}
+
+		printf("state @ %p\n", g_dev);
+		g_dev->print_info();
+
+		exit(0);
 	}
 
-	exit(0);
-
-fail:
-
-	if (g_dev != nullptr) {
-		delete g_dev;
-		g_dev = nullptr;
+	void test()
+	{
+		if (nullptr == g_dev) {
+			errx(1, "driver not running");
+		}
+		g_dev->start_test();
+		exit(0);
 	}
-
-	errx(1, "driver start failed");
-}
-
-/**
- * Stop the driver
- */
-void stop()
-{
-	if (g_dev != nullptr) {
-		delete g_dev;
-		g_dev = nullptr;
-
-	} else {
-		errx(1, "driver not running");
-	}
-
-	exit(0);
-}
-
-
-/**
- * Print a little info about the driver.
- */
-void
-info()
-{
-	if (nullptr == g_dev) {
-		errx(1, "driver not running");
-	}
-
-	printf("state @ %p\n", g_dev);
-	g_dev->print_info();
-
-	exit(0);
-}
 
 } // namespace
 
@@ -619,21 +546,22 @@ int
 vn300_main(int argc, char *argv[])
 {
 	if (!strcmp(argv[1], "start")) {
-        // Start/load the driver.
-        if (argc > 2) {
-            //alternative port
+		// Start/load the driver.
+		if (argc > 2) { //alternative port
 			vectornav300::start(argv[2]);
 		}
-        else {
+		else {
 			vectornav300::start(VN300_DEFAULT_PORT);
 		}
 	}
 	else if (!strcmp(argv[1], "stop")) {
-        vectornav300::stop();
+		vectornav300::stop();
 	}
-    else if (!strcmp(argv[1], "info") || !strcmp(argv[1], "status")) {
+	else if (!strcmp(argv[1], "test")) {
+		vectornav300::test();
+	}
+	else if (!strcmp(argv[1], "info") || !strcmp(argv[1], "status")) {
 		vectornav300::info();
 	}
-
-	errx(1, "unrecognized command, try 'start', 'stop', 'test', 'reset' or 'info'");
+	errx(1, "unrecognized command, try 'start', 'stop', 'test' or 'info'");
 }

@@ -44,8 +44,8 @@ public:
 
     virtual int 			init();
 
-    //print some basic information about the driver.
-    void				print_info();  ///< print status info
+    virtual void	print_info();  ///< print status info
+    virtual void  start_test(); ///< Start loopback test
 
 protected:
 
@@ -59,30 +59,32 @@ protected:
      */
     void taskMain(void);
 
-    void setupThings(void);
-    void teardownThings(void);
+
+    void setup(void);///< Prepare to start receiving INS data from serial port
+    void teardown(void);///< Release system resources
+
     int openUART(void);
     void handleSerialData(void);
 
     /**
      * Read available data into our internal buffer
-     * @return
+     * @return < 0 if any error
      */
     int doRawRead(void);
 
-  /**
+    /**
      * Find the sync byte in incoming stream
-     * @return 0 if synced ok
+     * @return 0 if synced ok, < 0 if error
      */
     int resync(void);
 
-  /**
+    /**
     * Used for loopback testing
     */
     void sendEchoMsg(void);
 
     /**
-    * Publish to uORB
+    * Publish our topics to uORB
     */
     void 			publish();
 
@@ -115,7 +117,7 @@ private:
 
 
     uint8_t     _rawReadBuf[256];
-    uint32_t    _rawReadAvailable;
+    uint32_t    _rawReadAvailable;///< How much of _rawReadBuf contains fresh valid data
 
     perf_counter_t			_read_perf;
     perf_counter_t      _resync_perf;
@@ -129,7 +131,7 @@ private:
 
 
     /**
-    * Stop the automatic measurement state machine.
+    * Stop reading and publishing INS data
     */
     void			stop();
 
