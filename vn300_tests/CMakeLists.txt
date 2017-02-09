@@ -31,11 +31,11 @@
 #
 ############################################################################
 px4_add_module(
-	MODULE drivers__vectornav300__vectornav300_tests
-	MAIN vectornav300_tests
+	MODULE drivers__vn300__vn300_tests
+	MAIN vn300_tests
 	COMPILE_FLAGS
 	SRCS
-		VectorNav300Test.cpp
+		VectorNav_VN300Test.cpp
 	DEPENDS
 		platforms__common
 	)
